@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CTSS Correspondence 938</title>
+  <link rel="stylesheet" href="./font.css">
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #d9d5cd; color: #24221e; }
+    main { max-width: 1040px; margin: 0 auto; padding: 38px 24px 64px; }
+    h1 { font-size: 25px; font-weight: 600; letter-spacing: -0.025em; margin: 0 0 22px; }
+    .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 14px 20px; margin-bottom: 22px; }
+    label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+    label[for="text"] { flex: 1 1 620px; min-width: min(100%, 400px); }
+    textarea { box-sizing: border-box; width: min(100%, 750px); min-height: 126px; padding: 15px;
+      border: 1px solid #aaa69d; border-radius: 4px; background: #f9f7f2; color: #24221e;
+      resize: vertical; font-family: "CTSS Correspondence 938", "CTSS Correspondence Extended", monospace;
+      font-size: 16px; line-height: 1.25; }
+    button { border: 1px solid #282620; background: #282620; color: #fff; border-radius: 4px;
+      font: inherit; font-size: 14px; font-weight: 600; padding: 10px 20px; cursor: pointer; }
+    button:hover { background: #4d493f; }
+    input[type="range"] { width: 130px; }
+    select { padding: 8px; border: 1px solid #aaa69d; border-radius: 4px;
+      background: #f9f7f2; color: #24221e; font: inherit; }
+    .paper { display: inline-block; max-width: 100%; overflow: auto; background: #f4efe3;
+      box-shadow: 0 2px 16px #39332a26; }
+    canvas { display: block; max-width: none; }
+    .small { margin: 0 0 12px; font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>CTSS Correspondence 938</h1>
+    <div class="controls">
+      <label for="text">Text
+        <textarea id="text" spellcheck="false">MEN ARE ALL ALIKE.
+IN WHAT WAY
+
+THE QUICK BROWN FOX JUMPS OVER 1234567890.</textarea>
+      </label>
+      <label for="ink">Ribbon wear
+        <input id="ink" type="range" min="0" max="1" step="0.05" value="0">
+      </label>
+      <label for="strike">Strike variation
+        <input id="strike" type="range" min="0" max="1" step="0.05" value="0">
+      </label>
+      <label for="face">Typeface
+        <select id="face">
+          <option value="consensus">Reconstructed 938</option>
+          <option value="impression">Single impression</option>
+        </select>
+      </label>
+      <label for="scale">Magnification
+        <select id="scale">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+        </select>
+      </label>
+      <button id="print" type="button">Print</button>
+    </div>
+    <p class="small">Paper</p>
+    <div class="paper"><canvas id="page" aria-label="Typewritten preview"></canvas></div>
+  </main>
+  <script type="module">
+    import { playStrike, renderStrike } from "./strike.js";
+
+    const canvas = document.querySelector("#page");
+    const input = document.querySelector("#text");
+    const ink = document.querySelector("#ink");
+    const strike = document.querySelector("#strike");
+    const face = document.querySelector("#face");
+    const scale = document.querySelector("#scale");
+    const print = document.querySelector("#print");
+    let stop = () => {};
+    const options = () => ({
+      ribbonWear: Number(ink.value),
+      strikeVariation: Number(strike.value),
+      face: face.value,
+      margin: 36,
+      size: 16 * Number(scale.value),
+    });
+    const refresh = () => {
+      stop();
+      input.style.fontFamily = face.value === "impression"
+        ? '"CTSS Correspondence 938 Impression", "CTSS Correspondence Extended", monospace'
+        : '"CTSS Correspondence 938", "CTSS Correspondence Extended", monospace';
+      renderStrike(canvas, input.value, options());
+    };
+    await Promise.all([
+      document.fonts.load('16px "CTSS Correspondence 938"'),
+      document.fonts.load('16px "CTSS Correspondence 938 Impression"'),
+      document.fonts.load('16px "CTSS Correspondence Extended"'),
+    ]);
+    refresh();
+    input.addEventListener("input", refresh);
+    ink.addEventListener("input", refresh);
+    strike.addEventListener("input", refresh);
+    face.addEventListener("change", refresh);
+    scale.addEventListener("change", refresh);
+    print.addEventListener("click", () => {
+      stop();
+      stop = playStrike(canvas, input.value, options());
+    });
+  </script>
+</body>
+</html>

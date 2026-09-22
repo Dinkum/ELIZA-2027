@@ -1,0 +1,59 @@
+* Print the first fifteen Fibonacci numbers on the on-line printer.
+*
+* WRS 753 is octal 1361: channel A, printer 0361. RCHA hands the channel a
+* command list; IOCD moves one word and disconnects. TCOA spins until it does.
+
+       ORG   200
+START  AXT   15,1
+       CLA   ZERO
+       STO   A
+       CLA   ONE
+       STO   B
+
+LOOP   CLA   B
+       TSX   PUTNUM,2
+       TSX   PRINT,2
+       CLA   A
+       ADD   B
+       STO   C
+       CLA   B
+       STO   A
+       CLA   C
+       STO   B
+       TIX   LOOP,1,1
+       HTR   0
+
+* Convert the accumulator to six BCD digits in LINE.
+* Each pass divides by ten; the remainder is already in the bottom six bits of
+* the accumulator, so LGR shifts it straight into the top character of the MQ.
+
+PUTNUM STO   N
+       CLA   ZERO
+       STO   LINE
+       AXT   6,4
+PUTD   CLA   ZERO
+       LDQ   N
+       DVP   TEN
+       STQ   N
+       LDQ   LINE
+       LGR   6
+       STQ   LINE
+       TIX   PUTD,4,1
+       TRA   1,2
+
+PRINT  WRS   753
+       RCHA  PCMD
+PWAIT  TCOA  PWAIT
+       TRA   1,2
+
+PCMD   IOCD  LINE,0,1
+LINE   OCT   000000000000
+
+ZERO   OCT   000000000000
+ONE    OCT   000000000001
+TEN    OCT   000000000012
+A      OCT   000000000000
+B      OCT   000000000000
+C      OCT   000000000000
+N      OCT   000000000000
+       END   START

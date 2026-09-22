@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELIZA 2027</title>
+<meta name="description" content="Software archaeology of Weizenbaum's ELIZA, printed on an IBM 1050.">
+<link rel="stylesheet" href="app/styles.css?v=9b6890466a45">
+</head>
+<body>
+  <!-- The desk. Two screens, and no paper yet: what to run is agreed here so
+       that the sheet is only ever the conversation. -->
+  <div id="intro" class="intro">
+    <header class="intro-head">
+      <p class="docket">ELIZA 2027</p>
+    </header>
+
+    <section id="screen-modes" class="slip" aria-labelledby="modes-title">
+      <h1 id="modes-title" class="slip-title">Pick A Mode</h1>
+      <ul id="mode-rows" class="rows"></ul>
+      <p id="modes-note" class="note" hidden></p>
+    </section>
+
+    <section id="screen-version" class="slip" aria-labelledby="version-title" hidden>
+      <h1 id="version-title" class="slip-title">Pick A Version</h1>
+      <ul id="version-rows" class="rows"></ul>
+    </section>
+
+    <section id="screen-loader" class="slip" aria-labelledby="loader-title" hidden>
+      <h1 id="loader-title" class="slip-title">Emulation</h1>
+      <p id="loader-line" class="loader-line">Bringing the machine up.</p>
+      <div class="loader-meter">
+        <div id="loader-progress" class="loader-progress" role="progressbar"
+             aria-label="Emulator startup" aria-valuemin="0" aria-valuemax="100"
+             aria-valuenow="0" aria-valuetext="Starting">
+          <span id="loader-progress-fill" class="loader-progress-fill"></span>
+        </div>
+        <output id="loader-percent" class="loader-percent">0%</output>
+      </div>
+      <p id="loader-detail" class="loader-detail"></p>
+    </section>
+
+    <footer class="intro-foot">
+      <a class="footnote" href="https://en.wikipedia.org/wiki/ELIZA" target="_blank" rel="noopener">What is ELIZA chatbot?</a>
+    </footer>
+  </div>
+
+  <!-- The continuous form in the 1052's platen. Everything is printed here. -->
+  <main id="form" class="form" data-state="printing" hidden>
+    <div class="paper">
+      <div class="feed feed-left" aria-hidden="true"></div>
+      <div class="feed feed-right" aria-hidden="true"></div>
+      <div id="paper-tools" class="paper-tools">
+        <aside id="live-guide" class="live-guide" aria-label="CTSS instructions" hidden>
+          <p>AT THE CTSS <code>R</code> PROMPT, TYPE <code>R ELIZA</code> TO START THE PROGRAM. THEN ENTER <code>100</code> FOR THE RECOVERED 1965 DOCTOR SCRIPT.</p>
+          <button id="live-guide-dismiss" class="live-guide-dismiss" type="button">DISMISS</button>
+        </aside>
+      </div>
+      <div id="sheet" class="sheet" role="log" aria-live="polite" aria-label="printed paper"></div>
+    </div>
+  </main>
+
+  <!-- The 1052 keyboard. Hidden: the paper is the whole interface. -->
+  <input id="keyboard" class="keyboard" autocomplete="off" autocorrect="off"
+         autocapitalize="characters" spellcheck="false" aria-label="typewriter keyboard">
+
+  <button id="back" class="back" type="button" hidden>BACK</button>
+
+  <button id="sound" class="sound" type="button" aria-pressed="false" hidden>BELL OFF</button>
+
+  <script type="module" data-cfasync="false" src="app/main.js?v=5fee1c43bae9"></script>
+</body>
+</html>

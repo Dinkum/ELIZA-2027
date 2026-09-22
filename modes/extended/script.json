@@ -1,0 +1,1049 @@
+{
+  "meta": {
+    "name": "ELIZA EXTENDED",
+    "lineage": "1966 DOCTOR (Weizenbaum, CACM). Extension of the 1966 design, not a reconstruction.",
+    "version": "0.0.2",
+    "note": "Keyed on literal words and tags. Every capture is a matched text span, never an inferred meaning. The semantic index may only suggest a family to try; it never fills a slot."
+  },
+
+  "greeting": "How do you do. Please tell me what is on your mind.",
+
+  "normalize": {
+    "contractions": {
+      "i'm": "i am",
+      "im": "i am",
+      "i've": "i have",
+      "ive": "i have",
+      "i'll": "i will",
+      "ill": "i will",
+      "i'd": "i would",
+      "don't": "do not",
+      "dont": "do not",
+      "doesn't": "does not",
+      "doesnt": "does not",
+      "didn't": "did not",
+      "didnt": "did not",
+      "can't": "cannot",
+      "cant": "cannot",
+      "won't": "will not",
+      "wont": "will not",
+      "isn't": "is not",
+      "isnt": "is not",
+      "aren't": "are not",
+      "arent": "are not",
+      "wasn't": "was not",
+      "wasnt": "was not",
+      "haven't": "have not",
+      "havent": "have not",
+      "hasn't": "has not",
+      "hasnt": "has not",
+      "it's": "it is",
+      "that's": "that is",
+      "thats": "that is",
+      "there's": "there is",
+      "theres": "there is",
+      "you're": "you are",
+      "youre": "you are",
+      "they're": "they are",
+      "theyre": "they are",
+      "we're": "we are",
+      "he's": "he is",
+      "she's": "she is",
+      "let's": "let us",
+      "ain't": "is not",
+      "aint": "is not",
+      "wasn't": "was not",
+      "weren't": "were not",
+      "werent": "were not",
+      "ain't got": "do not have",
+      "mustn't": "must not",
+      "mustnt": "must not",
+      "shouldn't": "should not",
+      "shouldnt": "should not",
+      "couldn't": "could not",
+      "couldnt": "could not",
+      "wouldn't": "would not",
+      "wouldnt": "would not",
+      "oughtn't": "ought not",
+      "hadn't": "had not",
+      "hadnt": "had not",
+      "hasn't": "has not",
+      "gimme": "give me",
+      "lemme": "let me",
+      "gonna": "going to",
+      "wanna": "want to",
+      "gotta": "have got to",
+      "kinda": "kind of",
+      "sorta": "sort of",
+      "outta": "out of",
+      "dunno": "do not know",
+      "c'mon": "come on",
+      "y'all": "you all"
+    },
+    "aliases": {
+      "mom": "mother",
+      "mommy": "mother",
+      "mum": "mother",
+      "mama": "mother",
+      "dad": "father",
+      "daddy": "father",
+      "papa": "father",
+      "folks": "parents",
+      "hubby": "husband",
+      "spouse": "partner",
+      "bf": "boyfriend",
+      "gf": "girlfriend",
+      "workplace": "work",
+      "office": "work",
+      "job": "work",
+      "career": "work",
+      "manager": "boss",
+      "supervisor": "boss",
+      "deadlines": "deadline",
+      "worries": "worried",
+      "worry": "worried",
+      "anxiety": "anxious",
+      "stress": "stressed",
+      "stressing": "stressed",
+      "stressed": "stressed",
+      "achers": "aches",
+      "ache": "aches",
+      "aching": "aches",
+      "cramps": "cramp",
+      "cramping": "cramp",
+      "crying": "cry",
+      "cried": "cry",
+      "sobbing": "cry",
+      "sleeping": "sleep",
+      "slept": "sleep",
+      "asleep": "sleep",
+      "insomnia": "sleep",
+      "nightmares": "nightmare",
+      "dreams": "dream",
+      "dreamt": "dream",
+      "dreamed": "dream",
+      "kids": "children",
+      "kid": "child",
+      "grandma": "grandmother",
+      "grandpa": "grandfather",
+      "granny": "grandmother",
+      "nana": "grandmother",
+      "sis": "sister",
+      "bro": "brother",
+      "brother-in-law": "brother",
+      "sister-in-law": "sister",
+      "terrified": "afraid",
+      "scared": "afraid",
+      "fearful": "afraid",
+      "freaking": "afraid",
+      "freaked": "afraid",
+      "freaks": "afraid",
+      "nervous": "anxious",
+      "uneasy": "anxious",
+      "on-edge": "anxious",
+      "tense": "anxious",
+      "jittery": "anxious",
+      "panicky": "panicking",
+      "unhappy": "sad",
+      "blue": "sad",
+      "down": "sad",
+      "heartbroken": "sad",
+      "grief": "sad",
+      "grieving": "sad",
+      "depressing": "depressed",
+      "anguish": "miserable",
+      "hopelessness": "hopeless",
+      "worthless": "hopeless",
+      "useless": "hopeless",
+      "failure": "hopeless",
+      "mad": "angry",
+      "furious": "angry",
+      "rage": "angry",
+      "irritated": "irritable",
+      "annoyed": "irritable",
+      "livid": "angry",
+      "resentful": "angry",
+      "bitter": "angry",
+      "tired": "exhausted",
+      "worn-out": "exhausted",
+      "drained": "exhausted",
+      "beat": "exhausted",
+      "fried": "exhausted",
+      "burnt": "exhausted",
+      "burnout": "exhausted",
+      "fatigue": "exhausted",
+      "weary": "exhausted",
+      "pooped": "exhausted",
+      "frazzled": "overwhelmed",
+      "drowning": "overwhelmed",
+      "buried": "overwhelmed",
+      "swamped": "overwhelmed",
+      "behind": "overwhelmed",
+      "alone": "lonely",
+      "isolated": "lonely",
+      "abandoned": "lonely",
+      "unloved": "lonely",
+      "invisible": "lonely",
+      "ashamed": "ashamed",
+      "embarrassed": "ashamed",
+      "humiliated": "ashamed",
+      "mortified": "ashamed",
+      "guilty": "guilty",
+      "blame": "guilty",
+      "selfish": "guilty",
+      "dumb": "stupid",
+      "fool": "stupid",
+      "hate": "hate",
+      "loathe": "hate",
+      "despise": "hate",
+      "can't-stand": "hate",
+      "thanks": "thank",
+      "thank-you": "thank"
+    }
+  },
+
+  "tags": {
+    "FAMILY": ["mother", "father", "parent", "parents", "sister", "brother", "sibling", "family", "son", "daughter", "child", "children", "grandmother", "grandfather", "aunt", "uncle", "niece", "nephew", "cousin", "grandparent", "stepmother", "stepfather", "inlaws", "relatives"],
+    "PARTNER": ["boyfriend", "girlfriend", "partner", "husband", "wife", "spouse", "fiance", "fiancee", "lover", "ex"],
+    "FEELING": ["anxious", "sad", "angry", "exhausted", "depressed", "worried", "stressed", "overwhelmed", "frustrated", "lonely", "afraid", "hopeless", "miserable", "guilty", "ashamed", "numb", "restless", "irritable", "panic", "panicking", "stupid", "hate", "happy", "excited", "relieved", "proud", "grateful", "content", "hopeful", "calm", "confident", "better", "good", "great", "okay", "fine", "amazing", "wonderful", "terrible", "awful", "horrible", "worst", "bad"],
+    "WORK": ["boss", "work", "deadline", "project", "meeting", "promotion", "review", "colleague", "coworker", "shift", "client", "overtime", "commute", "salary", "raise", "fired", "laid-off", "unemployed", "interview", "resume", "hire", "quitting", "quit", "email", "emails", "presentation", "performance", "workload", "team", "standup", "standups", "customer", "customers"],
+    "SCHOOL": ["school", "class", "classes", "teacher", "professor", "homework", "assignment", "exam", "exams", "test", "tests", "grades", "grade", "studying", "study", "college", "university", "semester", "finals", "midterms", "dorm", "lecture", "lectures", "tuition", "degree", "dropout", "graduation", "graduate", "thesis", "dissertation", "campus"],
+    "MONEY": ["money", "bills", "bill", "rent", "debt", "budget", "broke", "paycheck", "savings", "expenses", "mortgage", "insurance", "afford", "affording", "bankrupt", "eviction", "evicted", "landlord", "poverty", "skint", "in-debt", "cash-flow"],
+    "SLEEP": ["sleep", "insomnia", "awake", "wake", "waking", "nightmare", "dream", "bed", "rest", "nap", "bedtime", "alarm", "tired", "yawn"],
+    "BODY": ["aches", "cramp", "body", "chest", "stomach", "back", "head", "joints", "muscles", "breathing", "heart", "racing", "palpitations", "appetite", "weight", "shaking", "trembling", "sweating", "nausea", "dizzy", "dizziness", "lightheaded", "fatigue"],
+    "SICK": ["sick", "ill", "nauseous", "fever", "feverish", "chills", "cough", "coughing", "cold", "flu", "headache", "migraine", "achy", "achey", "sore", "virus", "infection", "drowsy", "drowsiness", "fatigued", "unwell", "crummy", "lousy", "run-down", "rundown", "congestion", "congested", "vomiting", "throwing-up", "diarrhea", "sneezing", "sinus", "throat", "tonsils", "earache", "rash", "hives", "antibiotics", "doctor", "appointment", "prescription", "medicine", "medication", "pills", "diagnosis", "symptoms", "symptom", "contagious", "recovering", "recovery", "quarantine"],
+    "YES": ["yes", "yeah", "yep", "yup", "sure", "right", "correct", "true", "definitely", "absolutely", "exactly", "agreed", "indeed", "positive", "certainly", "of-course", "confirm", "affirmative", "mm-hmm", "uh-huh", "totally", "obviously", "always", "forever"],
+    "NO": ["no", "nope", "nah", "wrong", "negative", "disagree", "denied", "denies"],
+    "BARE_NEGATION": ["never", "none", "not", "nothing", "nobody", "nowhere", "cannot", "refuse", "refuses"],
+    "SELF_BLAME": ["worthless", "useless", "hopeless", "failure", "stupid", "pathetic", "broken", "damaged", "crazy", "insane", "terrible-person", "bad-person", "loser"],
+    "ANGER_WORD": ["angry", "furious", "mad", "livid", "enraged", "fuming", "irate", "seething"],
+    "NO_CONTACT": ["no", "anyone", "anybody", "someone", "someone-out-there", "alone", "lonely", "by-myself", "on-my-own", "no-friends", "no-friend"],
+    "NO_ONE": ["nobody", "no-one", "noone", "anyone", "anybody", "alone", "lonely", "by-myself", "on-my-own", "no-friends", "no-friend"],
+    "WANT": ["want", "wish", "need", "hope", "crave", "long-for", "yearn", "desire", "aim", "goal", "dream-of", "aspire"],
+    "PREFER": ["would", "could", "should", "rather", "might", "prefer", "rather-not", "suppose", "maybe", "perhaps", "possibly"],
+    "MAYBE": ["maybe", "perhaps", "possibly", "probably", "sometimes", "uncertain", "unsure", "not-sure", "dunno", "guess", "kind-of", "sort-of", "i-guess"],
+    "TIME": ["today", "tomorrow", "yesterday", "tonight", "morning", "afternoon", "evening", "week", "month", "year", "always", "never", "often", "rarely", "sometimes", "daily", "weekly", "now", "later", "soon", "recently", "lately", "since", "still", "already", "yet"],
+    "QUESTION": ["what", "why", "how", "who", "when", "where", "which", "whose", "wonder"],
+    "GREETING": ["hello", "hi", "hey", "morning", "greetings", "sup", "yo", "howdy"],
+    "THANKS": ["thank", "thanks", "appreciate", "appreciated", "grateful"],
+    "SORRY": ["sorry", "apologize", "apologise", "apology", "apologies", "regret", "forgive"],
+    "LAUGH": ["laugh", "laughing", "laughed", "joke", "joking", "funny", "hilarious", "lol", "lmao", "giggle", "giggling"],
+    "CRY": ["cry", "crying", "cried", "tears", "weeping", "wept", "sob", "sobbing", "burst-into-tears", "break-down"],
+    "DEATH": ["death", "died", "dying", "dead", "passed", "funeral", "grieving", "grief", "loss", "lost", "mourn", "mourning", "passed-away"],
+    "SUBSTANCES": ["drinking", "drunk", "alcohol", "beer", "wine", "liquor", "drugs", "drug", "smoking", "smoke", "cigarettes", "vaping", "vape", "pot", "weed", "marijuana", "cocaine", "heroin", "stoned", "wasted", "hangover", "intoxicated", "sober", "relapse", "relapsed", "blackout", "blacked-out", "wasted-again"]
+  },
+
+  "pronouns": {
+    "flip": {
+      "i": "you",
+      "me": "you",
+      "my": "your",
+      "mine": "yours",
+      "myself": "yourself",
+      "am": "are",
+      "you": "i",
+      "your": "my",
+      "yours": "mine",
+      "yourself": "myself",
+      "are": "am",
+      "we": "you",
+      "our": "your",
+      "ours": "yours",
+      "us": "you"
+    }
+  },
+
+  "topicLabels": {
+    "feeling": "how you are feeling",
+    "work": "your work",
+    "family": "your family",
+    "relationship": "your relationship",
+    "sleep": "your sleep",
+    "anxiety": "your anxiety",
+    "health": "not feeling well",
+    "money": "money",
+    "school": "school",
+    "grief": "your loss",
+    "selfesteem": "how you see yourself",
+    "anger": "what made you angry",
+    "loneliness": "being on your own",
+    "substances": "the drinking or the drugs",
+    "smalltalk": "that",
+    "followup": "that",
+    "memory": "what you told me earlier",
+    "general": "that"
+  },
+
+  "patternSets": {
+    "FEELING_ABOUT": [
+      {
+        "match": ["0", "{feeling:/FEELING}", "0"],
+        "templates": [
+          "How long have you been {feeling}?",
+          "What do you think brought on {feeling}?",
+          "Tell me more about feeling {feeling}."
+        ],
+        "remember": "{feeling}",
+        "context": { "topic": "feeling" }
+      }
+    ]
+  },
+
+  "families": [
+    {
+      "id": "FEELING_CAUSE",
+      "topic": "feeling",
+      "rank": 30,
+      "examples": [
+        "i feel anxious because my boss keeps piling on work",
+        "i am sad because nobody listens to me",
+        "i get angry because my brother never helps",
+        "i am exhausted because i never get a break"
+      ],
+      "topicPrompt": "You mention a feeling and a reason. Tell me how the two connect.",
+      "rules": [
+        {
+          "id": "FEELING_CAUSE.because",
+          "rank": 34,
+          "tags": ["FEELING"],
+          "keywords": ["because"],
+          "patterns": [
+            {
+              "match": ["0", "{feeling:/FEELING}", "because", "{reason}", "0"],
+              "templates": [
+                "You say {reason}. What about that affects you most?",
+                "So {reason}. That is what makes you feel {feeling}.",
+                "You mention {reason}. Does it come up often?"
+              ],
+              "remember": "{reason}",
+              "context": { "topic": "feeling", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "because", "{reason}", "0"],
+              "templates": [
+                "You say {reason}. What about that affects you most?",
+                "You trace it back to this: {reason}."
+              ],
+              "remember": "{reason}",
+              "context": { "topic": "feeling" }
+            }
+          ]
+        },
+        {
+          "id": "FEELING_CAUSE.bare",
+          "rank": 22,
+          "tags": ["FEELING"],
+          "patternsFrom": "FEELING_ABOUT"
+        }
+      ]
+    },
+
+    {
+      "id": "WORK_STRESS",
+      "topic": "work",
+      "rank": 28,
+      "examples": [
+        "my boss is on my case all day",
+        "work is piling up and i cannot keep up",
+        "i have too many deadlines this week",
+        "my manager keeps changing the plan"
+      ],
+      "topicPrompt": "Work seems to be on your mind. What about it is weighing on you?",
+      "rules": [
+        {
+          "id": "WORK_STRESS.boss",
+          "rank": 32,
+          "keywords": ["boss"],
+          "patterns": [
+            {
+              "match": ["0", "boss", "0"],
+              "templates": [
+                "Tell me more about your boss.",
+                "What is your boss like?",
+                "How long has your boss been a problem?"
+              ],
+              "context": { "topic": "work", "expect": ["YES", "NO"] }
+            }
+          ]
+        },
+        {
+          "id": "WORK_STRESS.load",
+          "rank": 26,
+          "tags": ["WORK"],
+          "patterns": [
+            {
+              "match": ["0", "{load}", "0"],
+              "templates": [
+                "You mention {load:flip}. What would it take to stay ahead of it?",
+                "How long has it been like this?",
+                "Does anyone at work see how much there is?"
+              ],
+              "remember": "{load}",
+              "context": { "topic": "work" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "FAMILY",
+      "topic": "family",
+      "rank": 26,
+      "examples": [
+        "my mother takes care of me",
+        "i never see my father",
+        "my brother and i do not get along",
+        "my parents expect too much from me"
+      ],
+      "topicPrompt": "Your family keeps coming up. Tell me about them.",
+      "rules": [
+        {
+          "id": "FAMILY.relative",
+          "rank": 30,
+          "tags": ["FAMILY"],
+          "patterns": [
+            {
+              "match": ["0", "{relative:/FAMILY}", "{predicate}", "0"],
+              "templates": [
+                "Tell me more about your {relative}.",
+                "How do you get along with your {relative}?",
+                "What does your {relative} do that got your attention?"
+              ],
+              "remember": "{relative}",
+              "context": { "topic": "family", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "{relative:/FAMILY}", "0"],
+              "templates": [
+                "Tell me more about your {relative}.",
+                "Who else in your family comes to mind?"
+              ],
+              "context": { "topic": "family" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "RELATIONSHIP",
+      "topic": "relationship",
+      "rank": 26,
+      "examples": [
+        "my boyfriend made me come here",
+        "my girlfriend and i argue a lot",
+        "my partner is distant lately"
+      ],
+      "topicPrompt": "You keep returning to a relationship. Tell me what it is like.",
+      "rules": [
+        {
+          "id": "RELATIONSHIP.partner",
+          "rank": 30,
+          "tags": ["PARTNER"],
+          "patterns": [
+            {
+              "match": ["0", "{partner:/PARTNER}", "{action}", "0"],
+              "templates": [
+                "Your {partner} {action:flip}. How does that sit with you?",
+                "What does your {partner} say when you raise it?",
+                "Tell me more about your {partner}."
+              ],
+              "remember": "{partner}",
+              "context": { "topic": "relationship", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "{partner:/PARTNER}", "0"],
+              "templates": [
+                "Tell me more about your {partner}.",
+                "How long have things been this way with your {partner}?"
+              ],
+              "context": { "topic": "relationship" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "SLEEP_TIRED",
+      "topic": "sleep",
+      "rank": 24,
+      "examples": [
+        "i cannot sleep at night",
+        "i am exhausted all the time",
+        "i keep waking up at three in the morning",
+        "i had a nightmare about work"
+      ],
+      "topicPrompt": "Rest seems hard to come by. Tell me about your nights.",
+      "rules": [
+        {
+          "id": "SLEEP_TIRED.rest",
+          "rank": 28,
+          "tags": ["SLEEP"],
+          "patterns": [
+            {
+              "match": ["0", "{trouble}", "0"],
+              "templates": [
+                "You say {trouble:flip}. How long has that been going on?",
+                "What is going through your mind at those times?",
+                "Do you think this is connected to anything else you have told me?"
+              ],
+              "remember": "{trouble}",
+              "context": { "topic": "sleep" }
+            }
+          ]
+        },
+        {
+          "id": "SLEEP_TIRED.exhausted",
+          "rank": 33,
+          "keywords": ["tired", "exhausted"],
+          "patterns": [
+            {
+              "match": ["0", "{state:/FEELING}", "0"],
+              "templates": [
+                "How long have you been {state}?",
+                "What does being {state} keep you from doing?",
+                "Tell me about being {state}."
+              ],
+              "remember": "{state}",
+              "context": { "topic": "sleep" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "ANXIETY",
+      "topic": "anxiety",
+      "rank": 25,
+      "examples": [
+        "i am anxious about everything",
+        "i keep panicking at night",
+        "i feel restless all the time",
+        "i am worried about my work"
+      ],
+      "topicPrompt": "There seems to be a lot of worry in what you say. Tell me about it.",
+      "rules": [
+        {
+          "id": "ANXIETY.about",
+          "rank": 29,
+          "tags": ["FEELING"],
+          "keywords": ["anxious", "worried", "afraid", "scared"],
+          "patterns": [
+            {
+              "match": ["0", "{state:/FEELING}", "about", "{subject}", "0"],
+              "templates": [
+                "What is it about {subject} that makes you {state}?",
+                "How often do you feel {state} about {subject}?",
+                "Does {subject} always leave you {state}?"
+              ],
+              "remember": "{subject}",
+              "context": { "topic": "anxiety", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "{state:/FEELING}", "0"],
+              "templates": [
+                "How long have you been feeling {state}?",
+                "What do you do when you feel {state}?",
+                "Tell me more about feeling {state}."
+              ],
+              "remember": "{state}",
+              "context": { "topic": "anxiety" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "HEALTH",
+      "topic": "health",
+      "rank": 26,
+      "examples": [
+        "i have been sick all week",
+        "i am getting over a cold",
+        "i have a splitting headache",
+        "the flu wiped me out"
+      ],
+      "topicPrompt": "Not feeling well colors everything else. Tell me how long you have been under the weather.",
+      "rules": [
+        {
+          "id": "HEALTH.symptom",
+          "rank": 30,
+          "tags": ["SICK"],
+          "patterns": [
+            {
+              "match": ["0", "{ailment:/SICK}", "0"],
+              "templates": [
+                "How long have you had {ailment}?",
+                "What have you been able to do while {ailment}?",
+                "Has it kept you from anything that matters?"
+              ],
+              "remember": "{ailment}",
+              "context": { "topic": "health", "expect": ["YES", "NO"] }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "MONEY",
+      "topic": "money",
+      "rank": 24,
+      "examples": [
+        "i cannot afford the rent this month",
+        "the bills keep piling up",
+        "i am deep in debt",
+        "money is the reason i cannot sleep"
+      ],
+      "topicPrompt": "Money problems have a way of touching everything else. Tell me what is squeezing you.",
+      "rules": [
+        {
+          "id": "MONEY.pressure",
+          "rank": 28,
+          "tags": ["MONEY"],
+          "patterns": [
+            {
+              "match": ["0", "{pressure:/MONEY}", "0"],
+              "templates": [
+                "How long has money been hanging over you like {pressure}?",
+                "What happens if {pressure} does not let up?",
+                "Who else knows how tight things are?"
+              ],
+              "remember": "{pressure}",
+              "context": { "topic": "money", "expect": ["YES", "NO"] }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "SCHOOL",
+      "topic": "school",
+      "rank": 24,
+      "examples": [
+        "i am failing my classes",
+        "finals are next week and i cannot study",
+        "my professor never answers my emails",
+        "i think about dropping out every day"
+      ],
+      "topicPrompt": "School comes up. What part of it is the hardest right now?",
+      "rules": [
+        {
+          "id": "SCHOOL.load",
+          "rank": 28,
+          "tags": ["SCHOOL"],
+          "patterns": [
+            {
+              "match": ["0", "{load:/SCHOOL}", "0"],
+              "templates": [
+                "How long has {load} been weighing on you?",
+                "What would have to change for {load} to feel manageable?",
+                "Does anyone at school see what this is costing you?"
+              ],
+              "remember": "{load}",
+              "context": { "topic": "school", "expect": ["YES", "NO"] }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "GRIEF",
+      "topic": "grief",
+      "rank": 32,
+      "examples": [
+        "my father died last month",
+        "i lost my grandmother in the spring",
+        "i still cannot believe she is gone",
+        "the funeral is on friday"
+      ],
+      "topicPrompt": "Losing someone is one of the hardest things there is. Tell me about them.",
+      "rules": [
+        {
+          "id": "GRIEF.loss",
+          "rank": 36,
+          "tags": ["DEATH"],
+          "patterns": [
+            {
+              "match": ["0", "{lost:/DEATH}", "0"],
+              "templates": [
+                "What do you miss most about them?",
+                "How long has it been since {lost} happened?",
+                "Who do you talk to about it?"
+              ],
+              "remember": "{lost}",
+              "context": { "topic": "grief", "expect": ["YES", "NO"] }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "SELF_ESTEEM",
+      "topic": "selfesteem",
+      "rank": 30,
+      "examples": [
+        "i feel worthless",
+        "i am a failure at everything",
+        "i hate myself",
+        "nobody would even notice if i was gone"
+      ],
+      "topicPrompt": "That is a heavy thing to carry. Tell me where it comes from.",
+      "rules": [
+        {
+          "id": "SELF_ESTEEM.judgment",
+          "rank": 34,
+          "tags": ["SELF_BLAME"],
+          "patterns": [
+            {
+              "match": ["0", "{judgment:/SELF_BLAME}", "0"],
+              "templates": [
+                "You say you are {judgment}. Whose voice says that?",
+                "Being {judgment} — since when?",
+                "What would it take for {judgment} not to be the whole story?"
+              ],
+              "remember": "{judgment}",
+              "context": { "topic": "selfesteem", "expect": ["YES", "NO"] }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "ANGER",
+      "topic": "anger",
+      "rank": 30,
+      "examples": [
+        "i am furious at my brother",
+        "she makes me so angry",
+        "i hate how he talks to me",
+        "the way my boss talks to me makes me see red"
+      ],
+      "topicPrompt": "There is real heat in that. Tell me what lit it.",
+      "rules": [
+        {
+          "id": "ANGER.target",
+          "rank": 34,
+          "keywords": ["furious", "livid", "enraged", "fuming", "seething"],
+          "tags": ["ANGER_WORD"],
+          "patterns": [
+            {
+              "match": ["0", "{anger:/ANGER_WORD}", "at", "{target}", "0"],
+              "templates": [
+                "What would you say to {target} if there were no consequences?",
+                "How long have you been {anger} at {target}?",
+                "Does {target} know how {anger} it makes you?"
+              ],
+              "remember": "{target}",
+              "context": { "topic": "anger", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "{anger:/ANGER_WORD}", "0"],
+              "templates": [
+                "Who does that anger belong to, even if you have not said the name?",
+                "What is it like right before you feel that way?",
+                "Where does the anger land when it comes?"
+              ],
+              "remember": "{anger}",
+              "context": { "topic": "anger" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "LONELINESS",
+      "topic": "loneliness",
+      "rank": 30,
+      "examples": [
+        "i am alone all the time",
+        "nobody ever calls me any more",
+        "i feel lonely even in a crowded room",
+        "i have no one to talk to"
+      ],
+      "topicPrompt": "That kind of alone is hard to sit with. Tell me what your days are like.",
+      "rules": [
+        {
+          "id": "LONELINESS.alone",
+          "rank": 34,
+          "keywords": ["lonely"],
+          "patterns": [
+            {
+              "match": ["0", "{alone:/FEELING}", "0"],
+              "templates": [
+                "When did {alone} start?",
+                "Is there anyone at all you could reach out to?",
+                "What do you do with those empty hours?"
+              ],
+              "remember": "{alone}",
+              "context": { "topic": "loneliness", "expect": ["YES", "NO"] }
+            }
+          ]
+        },
+        {
+          "id": "LONELINESS.nocontact",
+          "rank": 32,
+          "tags": ["NO_CONTACT"],
+          "patterns": [
+            {
+              "match": ["0", "no", "one", "to", "talk", "0"],
+              "templates": [
+                "Who used to be the one you talked to?",
+                "What would you say if someone were here now?",
+                "How long has it been since you really talked to somebody?"
+              ],
+              "context": { "topic": "loneliness", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "no", "one", "0"],
+              "templates": [
+                "No one at all?",
+                "There is no one you could think of calling?",
+                "Who did that space in your life used to belong to?"
+              ],
+              "context": { "topic": "loneliness", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "{isolated:/NO_ONE}", "0"],
+              "templates": [
+                "How long has {isolated} been the shape of your days?",
+                "What is it like, going through this without anyone?",
+                "Has it always been this way, or did something change?"
+              ],
+              "remember": "{isolated}",
+              "context": { "topic": "loneliness" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "SUBSTANCES",
+      "topic": "substances",
+      "rank": 30,
+      "examples": [
+        "i have been drinking every night",
+        "i smoke to take the edge off",
+        "i got wasted again last weekend",
+        "the pills help me sleep"
+      ],
+      "topicPrompt": "That is its own kind of weight. Tell me how it fits into your days.",
+      "rules": [
+        {
+          "id": "SUBSTANCES.use",
+          "rank": 34,
+          "tags": ["SUBSTANCES"],
+          "patterns": [
+            {
+              "match": ["0", "{use:/SUBSTANCES}", "0"],
+              "templates": [
+                "How often does {use} happen?",
+                "What does {use} do for you that nothing else does?",
+                "Have you ever tried to do without it?"
+              ],
+              "remember": "{use}",
+              "context": { "topic": "substances", "expect": ["YES", "NO"] }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "SMALL_TALK",
+      "topic": "smalltalk",
+      "rank": 20,
+      "examples": [
+        "hello there",
+        "the weather is nice today",
+        "how are you",
+        "i am doing pretty good"
+      ],
+      "rules": [
+        {
+          "id": "SMALL_TALK.greeting",
+          "rank": 24,
+          "tags": ["GREETING"],
+          "patterns": [
+            {
+              "match": ["0", "/GREETING", "0"],
+              "templates": [
+                "Hello. How are you doing today?",
+                "Hi. What is on your mind?",
+                "Hello. How do you feel right now?"
+              ],
+              "context": { "topic": "smalltalk" }
+            }
+          ]
+        },
+        {
+          "id": "SMALL_TALK.mood",
+          "rank": 24,
+          "tags": ["FEELING"],
+          "keywords": ["good", "great", "fine", "okay", "better", "well"],
+          "patterns": [
+            {
+              "match": ["0", "{mood:/FEELING}", "0"],
+              "templates": [
+                "In what way are things {mood}?",
+                "Good. Tell me what makes it {mood}.",
+                "Is that same way it has been lately?"
+              ],
+              "context": { "topic": "smalltalk" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "FOLLOWUP_YESNO",
+      "topic": "followup",
+      "rank": 40,
+      "examples": [],
+      "rules": [
+        {
+          "id": "FOLLOWUP_YESNO.affirm",
+          "rank": 42,
+          "tags": ["YES"],
+          "patterns": [
+            {
+              "match": ["0", "/YES", "0"],
+              "requires": "expect",
+              "templates": [
+                "Then {lastTopic} is worth staying with. Say more about it.",
+                "You sound certain. What is the strongest part of it?",
+                "Good. What else about {lastTopic} matters to you?"
+              ],
+              "context": { "topic": "followup", "carryTopic": true }
+            }
+          ]
+        },
+        {
+          "id": "FOLLOWUP_YESNO.deny",
+          "rank": 42,
+          "tags": ["NO"],
+          "patterns": [
+            {
+              "match": ["0", "/NO", "0"],
+              "requires": "expect",
+              "templates": [
+                "Then let us leave {lastTopic} for now. What else is on your mind?",
+                "You are not sure. What would make it clearer?",
+                "All right. What would you rather talk about?"
+              ],
+              "context": { "topic": "followup", "carryTopic": true }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "MEMORY_RECALL",
+      "topic": "memory",
+      "rank": 18,
+      "examples": [],
+      "rules": [
+        {
+          "id": "MEMORY_RECALL.earlier",
+          "rank": 20,
+          "keywords": ["earlier", "before", "remember", "said", "again"],
+          "patterns": [
+            {
+              "match": ["0", "{cue}", "0"],
+              "recall": true,
+              "templates": [
+                "Earlier you said {memory}. Does that still hold?",
+                "You mentioned {memory}. How does that look now?",
+                "Let us go back to {memory}."
+              ],
+              "context": { "topic": "memory" }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "GENERIC",
+      "topic": "general",
+      "rank": 5,
+      "fallback": true,
+      "examples": [],
+      "rules": [
+        {
+          "id": "GENERIC.feeling",
+          "rank": 6,
+          "fallback": true,
+          "tags": ["FEELING"],
+          "patternsFrom": "FEELING_ABOUT"
+        },
+        {
+          "id": "GENERIC.want",
+          "rank": 6,
+          "fallback": true,
+          "tags": ["WANT"],
+          "patterns": [
+            {
+              "match": ["0", "/WANT", "to", "{want_to}", "0"],
+              "templates": [
+                "What would it mean to you if you could {want_to}?",
+                "Suppose you could {want_to} tomorrow. What then?",
+                "Why do you suppose you want to {want_to}?"
+              ],
+              "context": { "topic": "general" }
+            },
+            {
+              "match": ["0", "/WANT", "{want_thing}", "0"],
+              "templates": [
+                "What would it mean to you if you had {want_thing}?",
+                "Tell me more about wanting {want_thing}."
+              ],
+              "context": { "topic": "general" }
+            }
+          ]
+        },
+        {
+          "id": "GENERIC.reflect",
+          "rank": 4,
+          "fallback": true,
+          "patterns": [
+            {
+              "match": ["0", "{statement}", "0"],
+              "requires": "expect",
+              "templates": [
+                "You say {statement:flip}. Tell me more.",
+                "What does that bring up for you?",
+                "Does that connect to anything else?"
+              ],
+              "context": { "topic": "general" }
+            },
+            {
+              "match": ["0"],
+              "templates": [
+                "Please go on.",
+                "Tell me more about that.",
+                "What else comes to mind?",
+                "I see. What is behind that?",
+                "In what way?",
+                "That is interesting. Go on."
+              ],
+              "context": { "topic": "general" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

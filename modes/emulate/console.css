@@ -1,0 +1,165 @@
+/*
+ * The 7094 operator's console.
+ *
+ * The real thing was a steel desk covered in neon lamps: a row per register,
+ * one lamp per bit, grouped in threes because everything was read in octal.
+ * That grouping is the only reason this page is laid out the way it is — the
+ * lamps are shown as octal digits rather than as 36 separate dots, because a
+ * digit is what an operator actually read off the panel.
+ *
+ * Colours follow the rest of ELIZA 2027: a dark desk, and the pale amber of
+ * a neon indicator rather than the green of a later terminal.
+ */
+
+:root {
+  --desk: #201d19;
+  --desk-edge: #14120f;
+  --panel: #2c2823;
+  --panel-edge: #4a443b;
+  --label: #8c8474;
+  --lamp: #ffb347;
+  --lamp-dim: #4a3a22;
+  --ink: #e8e0cf;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: radial-gradient(ellipse 120% 80% at 50% 0%, #2c2823 0%, var(--desk) 45%, var(--desk-edge) 100%);
+  color: var(--ink);
+  font: 14px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+main {
+  width: min(64rem, 100%);
+  display: grid;
+  gap: 1.25rem;
+}
+
+h1 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--label);
+  margin: 0;
+}
+
+.panel {
+  background: linear-gradient(#332e28, var(--panel));
+  border: 1px solid var(--panel-edge);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+}
+
+/* ---- register lights --------------------------------------------------- */
+
+.registers {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+}
+
+.registers dt {
+  color: var(--label);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.registers dd {
+  margin: 0;
+  color: var(--lamp);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 6px rgba(255, 179, 71, 0.35);
+}
+
+.indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--panel-edge);
+}
+
+.indicators span {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--lamp-dim);
+  border-radius: 2px;
+  color: var(--lamp-dim);
+}
+
+.indicators span[data-on='true'] {
+  color: #1a1611;
+  background: var(--lamp);
+  border-color: var(--lamp);
+}
+
+/* ---- controls ---------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+button {
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: #3a342c;
+  border: 1px solid var(--panel-edge);
+  border-radius: 3px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+button:hover { background: #463f35; }
+button:disabled { opacity: 0.4; cursor: default; }
+
+.status {
+  margin-left: auto;
+  color: var(--label);
+  font-size: 0.75rem;
+}
+
+/* ---- source and output ------------------------------------------------- */
+
+textarea, pre {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: #191612;
+  border: 1px solid var(--panel-edge);
+  border-radius: 3px;
+  padding: 0.75rem;
+  margin: 0;
+}
+
+textarea { min-height: 18rem; resize: vertical; tab-size: 8; }
+
+pre { min-height: 6rem; overflow-x: auto; white-space: pre-wrap; }
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 60rem) {
+  .columns { grid-template-columns: 3fr 2fr; }
+}

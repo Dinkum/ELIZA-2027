@@ -1,0 +1,20 @@
+{
+  "name": "eliza-2027",
+  "version": "0.0.2",
+  "private": true,
+  "description": "Software archaeology of Weizenbaum's ELIZA, printed on an IBM 1050.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "node modes/emulate/serve.mjs",
+    "serve:static": "python3 -m http.server 8027 --bind 127.0.0.1",
+    "vendor": "node modes/extended/vendor/build.mjs",
+    "bench": "node modes/emulate/bench/throughput.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0"
+  },
+  "overrides": {
+    "sharp": "0.35.4"
+  }
+}

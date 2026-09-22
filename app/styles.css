@@ -1,0 +1,466 @@
+@import url('../font/font.css?v=d29dc5d55e00');
+
+/*
+ * A sheet of continuous-form paper in an IBM 1052 Printer-Keyboard.
+ *
+ * The geometry is the printer's, not the web's. From the 1050 system operation
+ * manual: ten characters per inch across, six lines per inch down. At the
+ * browser's 96 dpi that is a 9.6px column and a 16px line, so the base font
+ * size is 16px and every other measurement is in em. Narrow viewports shrink
+ * the font size rather than reflow, because the paper does not reflow.
+ *
+ * The line is 84 characters. That is SLIP's, not the printer's: TXTPRT builds
+ * ELIZA's output in fourteen six-character words and wraps it there, so a
+ * narrower page would wrap the same text twice. The 1052 prints up to 130.
+ */
+
+:root {
+  --typeface: 'CTSS Correspondence 938', 'CTSS Correspondence Extended', 'Courier New', monospace;
+
+  --desk: #201d19;
+  --desk-edge: #14120f;
+
+  --paper: #f2ead8;
+  --paper-shade: #e4d9c1;
+  --paper-edge: #cabfa5;
+
+  --ink: #23201c;
+  --ink-red: #9e3226;
+
+  --columns: 84;
+  --column: 0.6em;   /* one character position, 1/10 inch */
+  --row: 1em;        /* one line feed, 1/6 inch */
+  --feed: 2.5em;     /* tractor-hole strip */
+  --margin: 2em;     /* paper margin inside the strip */
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* Author rules below set display on some of these, which would otherwise beat
+   the user agent's own `[hidden]` rule. */
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, #2c2823 0%, var(--desk) 45%, var(--desk-edge) 100%);
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- the form ---------------------------------------------------------- */
+
+.form {
+  /* 59.4em is just under ten inches, wide enough for the 84-column line. */
+  font-family: var(--typeface);
+  font-size: min(16px, calc((100vw - 1.5rem) / 59.4));
+  width: 59.4em;
+  max-width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.form::-webkit-scrollbar { display: none; }
+
+.paper {
+  position: relative;
+  min-height: 100%;
+  padding: 1em 0 40vh;
+  background:
+    /* fibre: a faint horizontal grain, and a warm centre */
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(120, 100, 70, 0.022) 3px 4px),
+    repeating-linear-gradient(90deg, transparent 0 5px, rgba(120, 100, 70, 0.016) 5px 6px),
+    radial-gradient(ellipse 80% 60% at 50% 20%, #f6efe0 0%, var(--paper) 60%, var(--paper-shade) 100%);
+  box-shadow:
+    0 0 0 1px var(--paper-edge),
+    0 1.5em 4em rgba(0, 0, 0, 0.55),
+    inset 0 0 6em rgba(150, 125, 85, 0.18);
+}
+
+/* Desk chrome above the first printed line, aligned to the paper's text area. */
+.paper-tools {
+  position: relative;
+  z-index: 1;
+  min-height: 1.3em;
+  margin: 0 calc(var(--feed) + var(--margin)) 0.7em;
+}
+
+.live-guide {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 5rem;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0.6rem;
+  color: #2d2923;
+  background: rgba(246, 239, 224, 0.96);
+  border: 1px solid rgba(80, 70, 55, 0.45);
+  box-shadow: 0 0.35rem 1rem rgba(45, 38, 28, 0.18);
+  font: 600 10px/1.45 ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.035em;
+}
+
+.live-guide p { flex: 1; margin: 0; }
+.live-guide code { font: inherit; }
+
+.live-guide-dismiss {
+  flex: none;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  font: inherit;
+  cursor: pointer;
+}
+
+.live-guide-dismiss:hover,
+.live-guide-dismiss:focus-visible { color: var(--ink-red); }
+
+/* Tractor-feed strips: holes punched every half inch, 5/32 inch across. */
+.feed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--feed);
+  background-image: radial-gradient(
+    circle at center,
+    var(--desk) 0 0.40em,
+    rgba(0, 0, 0, 0.22) 0.40em 0.47em,
+    transparent 0.48em
+  );
+  background-size: 100% 3em;  /* half-inch pitch */
+  background-position: 0 1.5em;
+  background-repeat: repeat-y;
+}
+
+.feed-left  { left: 0;  border-right: 1px dashed rgba(120, 100, 70, 0.28); }
+.feed-right { right: 0; border-left:  1px dashed rgba(120, 100, 70, 0.28); }
+
+/* ---- printed lines ----------------------------------------------------- */
+
+.sheet {
+  margin: 0 calc(var(--feed) + var(--margin));
+  width: calc(var(--columns) * var(--column));
+  max-width: calc(100% - 2 * (var(--feed) + var(--margin)));
+  line-height: var(--row);
+  white-space: pre;
+}
+
+.line {
+  height: var(--row);
+  white-space: pre;
+}
+
+/* One character struck onto the paper. Ink and registration variation are
+   optional per-strike effects; the base face carries no inferred wear. */
+.ch {
+  display: inline-block;
+  width: var(--column);
+  height: var(--row);
+  line-height: var(--row);
+  vertical-align: top;
+  color: var(--ink);
+  opacity: var(--weight, 1);
+  transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--tilt, 0));
+}
+
+/* Automatic ribbon shift: the machine prints black, the operator red. */
+.ch.ribbon-red { color: var(--ink-red); }
+
+.run { display: inline-block; position: relative; vertical-align: top; }
+
+/* A choice the operator can take. */
+[data-field] { cursor: pointer; }
+[data-field]:not(.struck):hover::before {
+  content: '';
+  position: absolute;
+  inset: -0.05em -0.2em;
+  background: rgba(158, 50, 38, 0.10);
+}
+
+/* A choice cancelled by overstriking it, the way a typist cancels a line. */
+.struck { opacity: 0.45; cursor: default; }
+.struck::after {
+  content: '';
+  position: absolute;
+  left: -0.1em;
+  right: -0.1em;
+  top: 52%;
+  border-top: 1px solid var(--ink);
+  transform: rotate(-0.4deg);
+}
+
+/* A choice taken, underscored by backspacing over it. */
+.chosen::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.03em;
+  border-top: 1px solid var(--ink);
+  opacity: 0.8;
+}
+
+/* ---- the carrier ------------------------------------------------------- */
+
+.carrier {
+  position: relative;
+  display: inline-block;
+  width: var(--column);
+  height: var(--row);
+  vertical-align: top;
+}
+
+/* The 1052 exposed the carrier's position mechanically. This non-blinking
+   sight moves with the next character cell; it is machine furniture, not ink. */
+.carrier::before {
+  content: '';
+  position: absolute;
+  inset: -0.08em -0.06em;
+  border: 1px solid rgba(35, 32, 28, 0.46);
+  border-radius: 0.04em;
+  box-shadow:
+    inset 0 0 0 1px rgba(242, 234, 216, 0.55),
+    0 0 0.08em rgba(35, 32, 28, 0.18);
+  pointer-events: none;
+}
+
+/* The margin bell nudges the paper, as the carrier hitting the stop would. */
+.form.bell .paper { animation: knock 0.22s ease-out; }
+
+@keyframes knock {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(-0.12em); }
+  100% { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form.bell .paper { animation: none; }
+}
+
+/* ---- machine furniture ------------------------------------------------- */
+
+/* The keyboard is real but invisible: the paper is the whole interface. */
+.keyboard {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sound {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  font: 600 10px/1 ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.1em;
+  color: #cfc3aa;
+  background: #2b2721;
+  border: 1px solid #3d382f;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.sound:hover { color: #f0e6d0; border-color: #59513f; }
+.sound[aria-pressed='true'] { color: #e8b25a; border-color: #6b5a35; }
+
+/* BACK is fixed desk chrome on the choice screens. During a session main.js
+   moves the same control into paper-tools, above and aligned with the text. */
+.back {
+  position: fixed;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 3;
+  padding: 0.35rem 0.6rem;
+  font: 600 10px/1 ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.1em;
+  color: #cfc3aa;
+  background: #2b2721;
+  border: 1px solid #3d382f;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.paper-tools .back { position: static; }
+
+.back:hover { color: #f0e6d0; border-color: #59513f; }
+
+/* ---- the desk: what to run --------------------------------------------- */
+
+/* Chrome, not paper: a clean modern screen on the desk backdrop. The CTSS
+   correspondence face begins only when the paper does. One type hierarchy —
+   the wordmark, the screen's name, the choices — and nothing drawn around it. */
+.intro {
+  --chrome-ink: #ece7dd;
+  --chrome-dim: rgba(236, 231, 221, 0.55);
+  --chrome-faint: rgba(236, 231, 221, 0.32);
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  color: var(--chrome-ink);
+}
+
+/* The wordmark, centred at the top of the screen. */
+.intro-head {
+  padding: 2.75rem 1.5rem 0;
+  text-align: center;
+}
+
+.docket {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--chrome-dim);
+}
+
+.slip {
+  width: min(32rem, 100%);
+  margin: auto;
+  padding: 0 1.5rem;
+}
+
+.slip-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--chrome-ink);
+}
+
+.rows {
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One choice: its name, and one line under it. */
+.row {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.row:hover:not(:disabled) .row-label,
+.row:focus-visible .row-label { color: #fff; }
+
+.row:focus-visible { outline: 1px solid var(--chrome-dim); outline-offset: 3px; }
+
+.row-label {
+  display: block;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.row-line {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--chrome-dim);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+/* A choice the desk cannot offer is dimmed and disabled. */
+.row:disabled { cursor: not-allowed; }
+
+.row:disabled .row-label { color: rgba(236, 231, 221, 0.3); }
+.row:disabled .row-line { color: rgba(236, 231, 221, 0.22); }
+
+.note {
+  margin: 1.5rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--chrome-dim);
+}
+
+/* The loader: mode 3's own screen while the machine comes up. */
+.loader-line {
+  margin: 2.5rem 0 0;
+  font-size: 1rem;
+}
+
+.loader-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0;
+}
+
+.loader-progress {
+  position: relative;
+  flex: 1;
+  height: 0.625rem;
+  overflow: hidden;
+  border: 1px solid var(--chrome-faint);
+  border-radius: 1px;
+  background: rgba(236, 231, 221, 0.06);
+}
+
+.loader-progress-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--chrome-ink);
+  transition: width 160ms linear;
+}
+
+.loader-progress[data-state='error'] .loader-progress-fill {
+  background: #c86d5b;
+}
+
+.loader-percent {
+  width: 3ch;
+  color: var(--chrome-dim);
+  font: 600 0.75rem/1 ui-monospace, 'SF Mono', Menlo, monospace;
+  text-align: right;
+}
+
+.loader-detail {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--chrome-dim);
+  min-height: 1.4em;
+}
+
+/* The footnote: a quiet link, not a call to action. */
+.intro-foot {
+  padding: 0 1.5rem 2rem;
+  text-align: center;
+}
+
+.footnote {
+  font-size: 0.8125rem;
+  color: var(--chrome-faint);
+  text-decoration: none;
+}
+
+.footnote:hover { color: var(--chrome-dim); text-decoration: underline; }

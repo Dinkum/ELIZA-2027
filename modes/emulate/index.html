@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IBM 7094 — operator's console</title>
+<meta name="description" content="An IBM 7094 emulator running in the browser, on the way to CTSS and MAD-SLIP ELIZA.">
+<link rel="stylesheet" href="console.css">
+</head>
+<body>
+<main>
+  <h1>IBM 7094 · operator's console</h1>
+
+  <section class="panel">
+    <dl class="registers">
+      <dt>AC</dt><dd id="ac">+0000000000000</dd>
+      <dt>MQ</dt><dd id="mq"> 000000000000</dd>
+      <dt>SI</dt><dd id="si"> 000000000000</dd>
+      <dt>IC</dt><dd id="ic">00000</dd>
+      <dt>XR 1 2 4</dt><dd id="xr">00000  00000  00000</dd>
+      <dt>Instructions</dt><dd id="count">0</dd>
+    </dl>
+    <div class="indicators">
+      <span id="running">RUN</span>
+      <span id="overflow">AC OVERFLOW</span>
+      <span id="divide">DIVIDE CHECK</span>
+      <span id="io">I/O CHECK</span>
+      <span id="bcore">B CORE</span>
+      <span id="user">USER MODE</span>
+    </div>
+  </section>
+
+  <section class="panel controls">
+    <button id="load" type="button">Load</button>
+    <button id="start" type="button">Start</button>
+    <button id="stop" type="button">Stop</button>
+    <button id="step" type="button">Single step</button>
+    <label><input id="fast" type="checkbox"> flat out</label>
+    <span class="status" id="status">idle</span>
+  </section>
+
+  <div class="columns">
+    <section class="panel">
+      <h1>Source</h1>
+      <textarea id="source" spellcheck="false" aria-label="assembler source"></textarea>
+    </section>
+
+    <section class="panel">
+      <h1>On-line printer</h1>
+      <pre id="listing"></pre>
+    </section>
+  </div>
+</main>
+<script type="module" src="console.js"></script>
+</body>
+</html>

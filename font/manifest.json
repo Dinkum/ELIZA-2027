@@ -1,0 +1,629 @@
+{
+  "source": "references/IBM-938-standard-correspondence-typefaces.pdf",
+  "source_sha256": "8f80dad360c29d2f9afe507306998747cc194c1ed2306ef7b3f04497f286b4e2",
+  "source_pages": {
+    "938_layout": 19,
+    "ctss_graphics": 31
+  },
+  "positions": "=◇;:%'\"*()_+1234567890-&QWERTYUIOP¢qwertyuiop@ASDFGHJKL!±asdfghjkl$#ZXCVBNM,.?zxcvbnm,./",
+  "core_characters": "=◇;:%'\"*()_+1234567890-&QWERTYUIOP¢qwertyuiop@ASDFGHJKL!±asdfghjkl$#ZXCVBNM,.?zxcvbnm/",
+  "core_positions": 88,
+  "core_glyphs": 86,
+  "core_constructed": "",
+  "reconstruction": "source gaps preserved for symbols; clear-proof anchor for two-strike symbols; registered consensus for letters, digits, and multi-strike symbols; uncertain separation of the single ± strike; no element damage inferred",
+  "sample_sources": {
+    "=": [
+      "layout:0:0",
+      "graphics:symbol:0"
+    ],
+    "◇": [
+      "layout:0:1"
+    ],
+    ";": [
+      "layout:0:2",
+      "graphics:symbol:15"
+    ],
+    ":": [
+      "layout:0:3",
+      "graphics:symbol:5"
+    ],
+    "%": [
+      "layout:0:4",
+      "graphics:symbol:19"
+    ],
+    "'": [
+      "layout:0:5",
+      "graphics:symbol:1"
+    ],
+    "\"": [
+      "layout:0:6",
+      "graphics:symbol:23"
+    ],
+    "*": [
+      "layout:0:7",
+      "graphics:symbol:8"
+    ],
+    "(": [
+      "layout:0:8",
+      "graphics:symbol:11"
+    ],
+    ")": [
+      "layout:0:9",
+      "graphics:symbol:4"
+    ],
+    "_": [
+      "graphics:symbol:24"
+    ],
+    "+": [
+      "layout:0:11",
+      "graphics:symbol:2"
+    ],
+    "1": [
+      "layout:1:0",
+      "graphics:digits:0"
+    ],
+    "2": [
+      "layout:1:1",
+      "graphics:digits:1"
+    ],
+    "3": [
+      "layout:1:2",
+      "graphics:digits:2"
+    ],
+    "4": [
+      "layout:1:3",
+      "graphics:digits:3"
+    ],
+    "5": [
+      "layout:1:4",
+      "graphics:digits:4"
+    ],
+    "6": [
+      "layout:1:5",
+      "graphics:digits:5"
+    ],
+    "7": [
+      "layout:1:6",
+      "graphics:digits:6"
+    ],
+    "8": [
+      "layout:1:7",
+      "graphics:digits:7"
+    ],
+    "9": [
+      "layout:1:8",
+      "graphics:digits:8"
+    ],
+    "0": [
+      "layout:1:9",
+      "graphics:digits:9"
+    ],
+    "-": [
+      "layout:1:10",
+      "graphics:symbol:6"
+    ],
+    "&": [
+      "layout:1:11",
+      "graphics:symbol:21"
+    ],
+    "Q": [
+      "layout:2:0",
+      "graphics:upper:16"
+    ],
+    "W": [
+      "layout:2:1",
+      "graphics:upper:22"
+    ],
+    "E": [
+      "layout:2:2",
+      "graphics:upper:4"
+    ],
+    "R": [
+      "layout:2:3",
+      "graphics:upper:17"
+    ],
+    "T": [
+      "layout:2:4",
+      "graphics:upper:19"
+    ],
+    "Y": [
+      "layout:2:5",
+      "graphics:upper:24"
+    ],
+    "U": [
+      "layout:2:6",
+      "graphics:upper:20"
+    ],
+    "I": [
+      "layout:2:7",
+      "graphics:upper:8"
+    ],
+    "O": [
+      "layout:2:8",
+      "graphics:upper:14"
+    ],
+    "P": [
+      "layout:2:9",
+      "graphics:upper:15"
+    ],
+    "¢": [
+      "layout:2:10"
+    ],
+    "q": [
+      "layout:3:0",
+      "graphics:lower:16",
+      "graphics:label:0:1",
+      "graphics:label:1:6",
+      "graphics:label:13:7",
+      "graphics:label:23:7"
+    ],
+    "w": [
+      "layout:3:1",
+      "graphics:lower:22"
+    ],
+    "e": [
+      "layout:3:2",
+      "graphics:lower:4",
+      "graphics:label:0:0",
+      "graphics:label:1:4",
+      "graphics:label:1:10",
+      "graphics:label:1:24",
+      "graphics:label:3:1",
+      "graphics:label:4:4",
+      "graphics:label:4:9",
+      "graphics:label:4:13",
+      "graphics:label:8:3",
+      "graphics:label:11:2",
+      "graphics:label:11:8",
+      "graphics:label:11:12",
+      "graphics:label:13:4",
+      "graphics:label:13:11",
+      "graphics:label:13:18",
+      "graphics:label:16:4",
+      "graphics:label:19:1",
+      "graphics:label:19:4",
+      "graphics:label:20:0",
+      "graphics:label:21:3",
+      "graphics:label:23:5",
+      "graphics:label:23:11",
+      "graphics:label:26:2",
+      "graphics:label:26:10",
+      "graphics:label:26:17",
+      "graphics:label:27:2",
+      "graphics:label:27:5",
+      "graphics:label:28:2",
+      "graphics:label:29:2",
+      "graphics:label:29:9",
+      "graphics:label:30:2",
+      "graphics:label:30:9"
+    ],
+    "r": [
+      "layout:3:3",
+      "graphics:lower:17",
+      "graphics:label:1:13",
+      "graphics:label:1:20",
+      "graphics:label:3:2",
+      "graphics:label:4:8",
+      "graphics:label:7:5",
+      "graphics:label:8:4",
+      "graphics:label:11:7",
+      "graphics:label:13:10",
+      "graphics:label:13:14",
+      "graphics:label:16:5",
+      "graphics:label:18:5",
+      "graphics:label:19:2",
+      "graphics:label:21:4",
+      "graphics:label:24:4",
+      "graphics:label:24:7",
+      "graphics:label:26:9",
+      "graphics:label:26:13",
+      "graphics:label:27:1",
+      "graphics:label:27:6",
+      "graphics:label:28:11",
+      "graphics:label:30:6"
+    ],
+    "t": [
+      "layout:3:4",
+      "graphics:lower:19",
+      "graphics:label:1:9",
+      "graphics:label:1:19",
+      "graphics:label:4:11",
+      "graphics:label:8:2",
+      "graphics:label:11:10",
+      "graphics:label:13:19",
+      "graphics:label:18:12",
+      "graphics:label:19:6",
+      "graphics:label:20:7",
+      "graphics:label:20:16",
+      "graphics:label:22:0",
+      "graphics:label:23:10",
+      "graphics:label:25:5",
+      "graphics:label:26:18",
+      "graphics:label:27:4",
+      "graphics:label:27:8",
+      "graphics:label:28:4"
+    ],
+    "y": [
+      "layout:3:5",
+      "graphics:lower:24"
+    ],
+    "u": [
+      "layout:3:6",
+      "graphics:lower:20",
+      "graphics:label:0:2",
+      "graphics:label:1:7",
+      "graphics:label:2:2",
+      "graphics:label:6:3",
+      "graphics:label:13:8",
+      "graphics:label:16:1",
+      "graphics:label:23:2",
+      "graphics:label:23:8",
+      "graphics:label:24:0"
+    ],
+    "i": [
+      "layout:3:7",
+      "graphics:lower:8",
+      "graphics:label:0:7",
+      "graphics:label:2:6",
+      "graphics:label:3:3",
+      "graphics:label:4:15",
+      "graphics:label:6:1",
+      "graphics:label:6:7",
+      "graphics:label:7:8",
+      "graphics:label:8:5",
+      "graphics:label:11:14",
+      "graphics:label:15:3",
+      "graphics:label:16:8",
+      "graphics:label:18:7",
+      "graphics:label:18:15",
+      "graphics:label:19:9",
+      "graphics:label:20:14",
+      "graphics:label:22:1",
+      "graphics:label:25:11"
+    ],
+    "o": [
+      "layout:3:8",
+      "graphics:lower:14",
+      "graphics:label:1:2",
+      "graphics:label:1:8",
+      "graphics:label:1:12",
+      "graphics:label:1:17",
+      "graphics:label:1:21",
+      "graphics:label:3:4",
+      "graphics:label:4:2",
+      "graphics:label:5:1",
+      "graphics:label:5:3",
+      "graphics:label:7:1",
+      "graphics:label:10:1",
+      "graphics:label:11:0",
+      "graphics:label:13:2",
+      "graphics:label:15:5",
+      "graphics:label:18:1",
+      "graphics:label:20:9",
+      "graphics:label:23:1",
+      "graphics:label:23:9",
+      "graphics:label:26:0",
+      "graphics:label:28:6",
+      "graphics:label:29:0",
+      "graphics:label:29:7",
+      "graphics:label:30:0",
+      "graphics:label:31:2"
+    ],
+    "p": [
+      "layout:3:9",
+      "graphics:lower:15",
+      "graphics:label:1:16",
+      "graphics:label:1:22",
+      "graphics:label:2:0",
+      "graphics:label:3:0",
+      "graphics:label:4:6",
+      "graphics:label:11:1",
+      "graphics:label:11:5",
+      "graphics:label:19:0",
+      "graphics:label:20:12",
+      "graphics:label:21:2",
+      "graphics:label:26:1",
+      "graphics:label:29:1",
+      "graphics:label:30:1"
+    ],
+    "@": [
+      "graphics:symbol:18"
+    ],
+    "A": [
+      "layout:4:0",
+      "graphics:upper:0"
+    ],
+    "S": [
+      "layout:4:1",
+      "graphics:upper:18"
+    ],
+    "D": [
+      "layout:4:2",
+      "graphics:upper:3"
+    ],
+    "F": [
+      "layout:4:3",
+      "graphics:upper:5"
+    ],
+    "G": [
+      "layout:4:4",
+      "graphics:upper:6"
+    ],
+    "H": [
+      "layout:4:5",
+      "graphics:upper:7"
+    ],
+    "J": [
+      "layout:4:6",
+      "graphics:upper:9"
+    ],
+    "K": [
+      "layout:4:7",
+      "graphics:upper:10"
+    ],
+    "L": [
+      "layout:4:8",
+      "graphics:upper:11"
+    ],
+    "!": [
+      "layout:4:9",
+      "graphics:symbol:20"
+    ],
+    "±": [
+      "layout:4:10"
+    ],
+    "a": [
+      "layout:5:0",
+      "graphics:lower:0",
+      "graphics:label:0:3",
+      "graphics:label:1:15",
+      "graphics:label:4:7",
+      "graphics:label:7:4",
+      "graphics:label:11:6",
+      "graphics:label:13:9",
+      "graphics:label:13:15",
+      "graphics:label:21:0",
+      "graphics:label:21:6",
+      "graphics:label:26:8",
+      "graphics:label:27:3",
+      "graphics:label:27:10"
+    ],
+    "s": [
+      "layout:5:1",
+      "graphics:lower:18",
+      "graphics:label:0:6",
+      "graphics:label:1:3",
+      "graphics:label:1:18",
+      "graphics:label:2:3",
+      "graphics:label:2:5",
+      "graphics:label:4:3",
+      "graphics:label:4:14",
+      "graphics:label:4:16",
+      "graphics:label:6:4",
+      "graphics:label:6:6",
+      "graphics:label:7:7",
+      "graphics:label:8:1",
+      "graphics:label:8:6",
+      "graphics:label:9:0",
+      "graphics:label:9:3",
+      "graphics:label:11:13",
+      "graphics:label:11:15",
+      "graphics:label:13:3",
+      "graphics:label:13:6",
+      "graphics:label:15:0",
+      "graphics:label:16:7",
+      "graphics:label:19:8",
+      "graphics:label:21:5",
+      "graphics:label:25:2",
+      "graphics:label:26:5",
+      "graphics:label:27:13",
+      "graphics:label:28:3"
+    ],
+    "d": [
+      "layout:5:2",
+      "graphics:lower:3",
+      "graphics:label:3:5",
+      "graphics:label:7:0",
+      "graphics:label:21:8"
+    ],
+    "f": [
+      "layout:5:3",
+      "graphics:lower:5"
+    ],
+    "g": [
+      "layout:5:4",
+      "graphics:lower:6",
+      "graphics:label:0:8",
+      "graphics:label:2:7",
+      "graphics:label:6:8",
+      "graphics:label:7:9",
+      "graphics:label:16:9",
+      "graphics:label:19:10",
+      "graphics:label:27:0",
+      "graphics:label:27:15"
+    ],
+    "h": [
+      "layout:5:5",
+      "graphics:lower:7",
+      "graphics:label:1:23",
+      "graphics:label:4:12",
+      "graphics:label:11:11"
+    ],
+    "j": [
+      "layout:5:6",
+      "graphics:lower:9"
+    ],
+    "k": [
+      "layout:5:7",
+      "graphics:lower:10",
+      "graphics:label:8:7",
+      "graphics:label:13:17",
+      "graphics:label:28:12"
+    ],
+    "l": [
+      "layout:5:8",
+      "graphics:lower:11",
+      "graphics:label:0:4",
+      "graphics:label:1:1",
+      "graphics:label:2:1",
+      "graphics:label:4:1",
+      "graphics:label:5:2",
+      "graphics:label:7:2",
+      "graphics:label:7:3",
+      "graphics:label:9:1",
+      "graphics:label:13:1",
+      "graphics:label:15:6",
+      "graphics:label:18:9",
+      "graphics:label:23:4",
+      "graphics:label:25:0"
+    ],
+    "$": [
+      "layout:5:9",
+      "graphics:symbol:7"
+    ],
+    "#": [
+      "layout:5:10",
+      "graphics:symbol:16"
+    ],
+    "Z": [
+      "layout:6:0",
+      "graphics:upper:25"
+    ],
+    "X": [
+      "layout:6:1",
+      "graphics:upper:23"
+    ],
+    "C": [
+      "layout:6:2",
+      "graphics:upper:2"
+    ],
+    "V": [
+      "layout:6:3",
+      "graphics:upper:21"
+    ],
+    "B": [
+      "layout:6:4",
+      "graphics:upper:1"
+    ],
+    "N": [
+      "layout:6:5",
+      "graphics:upper:13"
+    ],
+    "M": [
+      "layout:6:6",
+      "graphics:upper:12"
+    ],
+    ",": [
+      "layout:6:7",
+      "layout:7:7",
+      "graphics:symbol:10"
+    ],
+    ".": [
+      "layout:6:8",
+      "layout:7:8",
+      "graphics:symbol:3"
+    ],
+    "?": [
+      "layout:6:9",
+      "graphics:symbol:28"
+    ],
+    "z": [
+      "layout:7:0",
+      "graphics:lower:25"
+    ],
+    "x": [
+      "layout:7:1",
+      "graphics:lower:23",
+      "graphics:label:20:1"
+    ],
+    "c": [
+      "layout:7:2",
+      "graphics:lower:2",
+      "graphics:label:1:0",
+      "graphics:label:4:0",
+      "graphics:label:5:0",
+      "graphics:label:13:0",
+      "graphics:label:13:16",
+      "graphics:label:18:0",
+      "graphics:label:19:3",
+      "graphics:label:26:15",
+      "graphics:label:30:8",
+      "graphics:label:31:0"
+    ],
+    "v": [
+      "layout:7:3",
+      "graphics:lower:21"
+    ],
+    "b": [
+      "layout:7:4",
+      "graphics:lower:1",
+      "graphics:label:13:13",
+      "graphics:label:16:3",
+      "graphics:label:23:3",
+      "graphics:label:26:12",
+      "graphics:label:30:5"
+    ],
+    "n": [
+      "layout:7:5",
+      "graphics:lower:13",
+      "graphics:label:0:9",
+      "graphics:label:2:8",
+      "graphics:label:4:10",
+      "graphics:label:5:4",
+      "graphics:label:6:2",
+      "graphics:label:6:9",
+      "graphics:label:7:10",
+      "graphics:label:11:3",
+      "graphics:label:11:9",
+      "graphics:label:15:8",
+      "graphics:label:16:0",
+      "graphics:label:16:10",
+      "graphics:label:18:17",
+      "graphics:label:19:5",
+      "graphics:label:19:11",
+      "graphics:label:20:10",
+      "graphics:label:20:15",
+      "graphics:label:21:7",
+      "graphics:label:24:1",
+      "graphics:label:25:8",
+      "graphics:label:25:13",
+      "graphics:label:26:3",
+      "graphics:label:27:11",
+      "graphics:label:27:16",
+      "graphics:label:28:7",
+      "graphics:label:29:3",
+      "graphics:label:30:3"
+    ],
+    "m": [
+      "layout:7:6",
+      "graphics:lower:12",
+      "graphics:label:6:0",
+      "graphics:label:10:2",
+      "graphics:label:10:3",
+      "graphics:label:15:2",
+      "graphics:label:16:2",
+      "graphics:label:18:2",
+      "graphics:label:18:3",
+      "graphics:label:21:1"
+    ],
+    "/": [
+      "layout:7:9",
+      "graphics:symbol:9"
+    ]
+  },
+  "sample_impressions": 426,
+  "single_sample_characters": "◇_¢@±",
+  "extended_characters": "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¢¬±ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüýÿĀāĂăĄąĆćĈĉĊċČčĎďĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĨĩĪīĬĭĮįİĴĵĶķĹĺĻļĽľŃńŅņŇňŌōŎŏŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŨũŪūŬŭŮůŲųŴŵŶŷŸŹźŻżŽž–—‘’“”…◇",
+  "advance_width_units": 600,
+  "units_per_em": 1000,
+  "outputs": {
+    "CTSS-Correspondence-938.ttf": "8afe89dcbbb6d1561ef212a5d8ea66ad0e10f6e46b6347a2eda76c5fb92d4d0d",
+    "CTSS-Correspondence-938.woff2": "de6bfaf9a036ee5d28389298b23a55514402e00f4ea5bce4f42ddd45c7fcc2d4",
+    "CTSS-Correspondence-938-Impression.ttf": "1882f13dbe01ad96f79059ad97ee5c4d40a83d71a76e8ba2948ebc3c3d09880c",
+    "CTSS-Correspondence-938-Impression.woff2": "b988dda7f9595f7e6c24ccb1261510b98fe107efe38088f07d2db23d195e5408",
+    "CTSS-Correspondence-Extended.ttf": "e782104786dd7bc719d15fd727c8d410561ae2b54aaa03081ee580cf8fa28f7f",
+    "CTSS-Correspondence-Extended.woff2": "09255700a09ca38bc5e015e4c99091220da06b8511d9c5dccc25042ec353ea3e",
+    "specimen.png": "6ba3c8695225564e2a8cf1422ef72a6e1233adaa664bb9effe7a843b37075184",
+    "specimen-impression.png": "5a1cbb04cd338edff01e8654e0b181d382744b1bae34b8a5fae01ff1dc47bbbe"
+  }
+}

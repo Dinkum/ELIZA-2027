@@ -1,0 +1,32 @@
+@font-face {
+  font-family: "CTSS Correspondence 938";
+  src: url("./CTSS-Correspondence-938.woff2?v=de6bfaf9a036") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "CTSS Correspondence 938 Impression";
+  src: url("./CTSS-Correspondence-938-Impression.woff2?v=b988dda7f959") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "CTSS Correspondence Extended";
+  src: url("./CTSS-Correspondence-Extended.woff2?v=09255700a09c") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+.ctss-correspondence {
+  font-family: "CTSS Correspondence 938", "CTSS Correspondence Extended", monospace;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+}
