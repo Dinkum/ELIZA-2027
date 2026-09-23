@@ -88,7 +88,7 @@ function tokenize(text) {
     if (token.punct) return;
     token.rawIndex = rawIndex;
     token.wordStart = words.length;
-    for (const part of token.text.toLowerCase().split(/[^a-z0-9']+/).filter(Boolean)) {
+    for (const part of token.text.toLowerCase().match(/[a-z0-9]+(?:['-][a-z0-9]+)*/g) || []) {
       words.push({ raw, rawIndex, text: token.text, sentence: token.sentence, surface: part });
     }
     token.wordEnd = words.length;
@@ -98,19 +98,52 @@ function tokenize(text) {
 }
 
 /**
- * Expand contractions and known aliases. Only the matching form changes; the
- * raw token still carries what was typed. Negation and tense survive because
- * expansion splits rather than deletes: "don't" becomes "do not", and the
- * "not" is still a token the matcher can see.
+ * A configured hyphenated alias also matches its spaced spelling, and a
+ * multiword contraction is consumed before either word is expanded alone.
  */
+const PHRASE_KEYS = new WeakMap();
+
+function phraseKeys(script) {
+  const cached = PHRASE_KEYS.get(script);
+  if (cached) return cached;
+  const byFirst = new Map();
+  const { contractions = {}, aliases = {} } = script.normalize || {};
+  for (const key of [...Object.keys(contractions), ...Object.keys(aliases)]) {
+    const parts = key.split(/[\s-]+/).filter(Boolean);
+    if (parts.length < 2) continue;
+    const entries = byFirst.get(parts[0]) || [];
+    entries.push({ key, parts });
+    byFirst.set(parts[0], entries);
+  }
+  for (const entries of byFirst.values()) entries.sort((a, b) => b.parts.length - a.parts.length);
+  PHRASE_KEYS.set(script, byFirst);
+  return byFirst;
+}
+
+/** Expand contractions and aliases without changing the original quote span. */
 function normalize(words, script) {
   const { contractions = {}, aliases = {} } = script.normalize || {};
+  const phrases = phraseKeys(script);
   const out = [];
-  for (const word of words) {
-    const expanded = contractions[word.surface] || word.surface;
-    for (const piece of expanded.split(' ').filter(Boolean)) {
-      out.push({ ...word, norm: aliases[piece] || piece });
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    let surface = word.surface;
+    let end = i;
+    for (const phrase of phrases.get(surface) || []) {
+      if (!phrase.parts.every((part, offset) => {
+        const current = words[i + offset];
+        return current?.surface === part && current.sentence === word.sentence &&
+          (offset === 0 || current.rawIndex === words[i + offset - 1].rawIndex + 1);
+      })) continue;
+      surface = phrase.key;
+      end = i + phrase.parts.length - 1;
+      break;
     }
+    const expanded = contractions[surface] || surface;
+    for (const piece of expanded.split(' ').filter(Boolean)) {
+      out.push({ ...word, rawEndIndex: words[end].rawIndex, norm: aliases[piece] || piece });
+    }
+    i = end;
   }
   return out;
 }
@@ -159,7 +192,7 @@ function quoteSpan(input, words, from, to) {
   // is allowed to run out of words. Both quote as the empty string.
   if (from >= to || !words[from]) return '';
   const first = words[from].rawIndex;
-  const last = words[to - 1].rawIndex;
+  const last = words[to - 1].rawEndIndex ?? words[to - 1].rawIndex;
   const raw = words[from].raw;
   const span = input.slice(raw[first].start, raw[last].end).trim();
   // Sentence case the first letter of the first word only; leave acronyms and
@@ -181,6 +214,33 @@ function captureToken(token) {
   return { name, tag: tag ? tag.replace(/^\//, '') : null };
 }
 
+/** A semantic family needs a literal or tag in its pattern, not only a wildcard. */
+function hasPatternEvidence(pattern) {
+  return pattern.match.some((token) =>
+    token.startsWith('/') || /^\{[^}]+:\/[^}]+\}$/.test(token) ||
+    (token !== '0' && !token.startsWith('{')));
+}
+
+/** A nearby denial governs a state until punctuation or a contrasting clause. */
+function isNegated(words, at) {
+  const word = words[at];
+  let next = at;
+  for (let i = at - 1; i >= 0 && at - i <= 5; i -= 1) {
+    const previous = words[i];
+    if (previous.sentence !== word.sentence) break;
+    const after = previous.rawEndIndex ?? previous.rawIndex;
+    if (word.raw.slice(after + 1, words[next].rawIndex).some((token) => token.punct)) break;
+    if (['but', 'because', 'although', 'though', 'however', 'yet'].includes(previous.norm)) break;
+    const nextWord = words[i + 1]?.norm;
+    if (['not', 'never', 'cannot', 'nobody', 'none'].includes(previous.norm)) {
+      if (!['stop', 'help', 'avoid'].includes(nextWord)) return true;
+    }
+    if (previous.norm === 'no' && ['longer', 'one', 'person', 'people', 'body'].includes(nextWord)) return true;
+    next = i;
+  }
+  return false;
+}
+
 /**
  * Match a pattern against the words, left to right, with backtracking.
  *
@@ -200,8 +260,8 @@ function matchPattern(input, words, pattern, script, from = 0) {
   const tagPrefixes = tagPrefixesFor(words, script);
 
   const walk = (pi, wi) => {
-    if (pi === pattern.length) return true;
-    const token = pattern[pi];
+    if (pi === pattern.match.length) return true;
+    const token = pattern.match[pi];
     const word = words[wi];
 
     if (token === '0') {
@@ -226,6 +286,7 @@ function matchPattern(input, words, pattern, script, from = 0) {
 
     if (token.startsWith('{')) {
       const { name, tag } = captureToken(token);
+      if (pattern.unnegated?.includes(name) && isNegated(words, wi)) return false;
       const sentence = word.sentence;
       const prefix = tag ? tagPrefixes.get(tag) : null;
       for (let end = words.length; end > wi; end -= 1) {
@@ -247,6 +308,7 @@ function matchPattern(input, words, pattern, script, from = 0) {
     }
 
     if (word.norm !== token) return false;
+    if (pattern.unnegated?.includes(token) && isNegated(words, wi)) return false;
     return walk(pi + 1, wi + 1);
   };
 
@@ -372,7 +434,12 @@ export class ExtendedEliza {
     for (const candidate of found) {
       const patterns = this.patternsFor(candidate.rule);
       for (const pattern of patterns) {
-        const captures = matchPattern(input, words, pattern.match, this.script);
+        if (candidate.source === 'semantic' && !hasPatternEvidence(pattern)) {
+          trace.push({ step: 'rule', rule: candidate.rule.id, family: candidate.family.id,
+            via: candidate.source, on: candidate.matchedOn, matched: false, skipped: 'no-pattern-evidence' });
+          continue;
+        }
+        const captures = matchPattern(input, words, pattern, this.script);
         trace.push({
           step: 'rule',
           rule: candidate.rule.id,
@@ -618,19 +685,6 @@ export class ExtendedEliza {
         match = this.tryRules(input, words, rules, trace);
         if (match) break;
       }
-      // A family was proposed and no rule in it fit. The script may ask a
-      // topic-level question rather than invent details.
-      if (!match && suggestions.length) {
-        const family = this.families.get(suggestions[0].family);
-        if (family?.topicPrompt) {
-          this.context.topic = family.topic;
-          this.context.lastTopic = family.topic;
-          this.recent.push(family.topicPrompt);
-          trace.push({ step: 'topic-prompt', family: family.id, output: family.topicPrompt });
-          this.lastTrace = trace;
-          return family.topicPrompt;
-        }
-      }
       // Memory recall re-enters at REASSEMBLE rather than short-circuiting it.
       // The hardcoded sentence this replaced could not rotate, so a conversation
       // that recalled twice got the identical line twice, and the script's
@@ -644,10 +698,8 @@ export class ExtendedEliza {
     }
 
     if (!match) {
-      const reply = 'Please go on.';
-      trace.push({ step: 'exhausted', output: reply });
       this.lastTrace = trace;
-      return reply;
+      throw new Error('Extended script has no matching fallback pattern');
     }
 
     const reply = this.reassemble(input, words, match, trace);

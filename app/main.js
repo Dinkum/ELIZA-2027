@@ -11,23 +11,24 @@
  * when the engine starts talking, and the mode and version are never printed.
  */
 
-import { Typewriter } from './typewriter.js';
+import { Typewriter } from './typewriter.js?v=56ba75bcf382';
 import { Sound } from './sound.js';
-import { LiveLine } from './live.js?v=e10739deb3ec';
+import { LiveLine } from './live.js?v=7f3799639c78';
 import { CtssOutput, logInToCtss } from './ctss-login.js';
 import {
   MODES, VERSIONS, LINE_DOWN, needsVersion, previousScreen, liveLineAvailable,
-} from './intro.js';
+} from './intro.js?v=6a8bbea53bbe';
 import { Eliza } from '../modes/rewrite/eliza.js';
-import { ElizaPort, SlipFault } from '../modes/port/eliza.js';
+import { ElizaPort, SlipFault } from '../modes/port/eliza.js?v=1e3713080283';
+import { ElizaPort1966 } from '../modes/port/eliza-1966.js?v=2007d80b9177';
 import { SCRIPT_1965B } from '../data/scripts/eliza-1965b-tape100.js';
 import { SCRIPT_1966 } from '../data/scripts/eliza-1966-cacm.js';
-import { ExtendedEliza } from '../modes/extended/engine.js';
+import { ExtendedEliza } from '../modes/extended/engine.js?v=21b8b65de185';
 import { EncoderClient, familyVectors, vectorsAreCompatible } from '../modes/extended/encoder.js?v=1698b728b0a6';
 import { createSemantics, SemanticIndex } from '../modes/extended/semantics.js';
 
 /** Extended ships its own richer script rather than reading an archive tape. */
-const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=21dc90c18842', import.meta.url);
+const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=08935aeb0df9', import.meta.url);
 
 /**
  * The family example vectors, emitted by `npm run vendor` beside the model.
@@ -36,7 +37,7 @@ const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=21dc90c1884
  * worker instead. Either way the vectors must come from the model the worker
  * actually loaded, which is checked below before they are used.
  */
-const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=8bc6840aff6a', import.meta.url);
+const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=a799fd1dd528', import.meta.url);
 
 /**
  * The two archive tapes, by version key.
@@ -49,6 +50,12 @@ const TAPES = {
   '1966': { script: SCRIPT_1966, dialect: '1966' },
 };
 
+/** Each machine image has its own compiled ELIZA and script 100. */
+const MACHINE_PACKS = {
+  '1965b': new URL('../modes/emulate/ctss-dasd.pack', import.meta.url),
+  '1966': new URL('../modes/emulate/ctss-1966-dasd.pack', import.meta.url),
+};
+
 const form = document.getElementById('form');
 const keyboard = document.getElementById('keyboard');
 const soundButton = document.getElementById('sound');
@@ -56,6 +63,8 @@ const backButton = document.getElementById('back');
 const paperTools = document.getElementById('paper-tools');
 const liveGuide = document.getElementById('live-guide');
 const liveGuideDismiss = document.getElementById('live-guide-dismiss');
+const portGuide = document.getElementById('port-guide');
+const portGuideDismiss = document.getElementById('port-guide-dismiss');
 const intro = document.getElementById('intro');
 const note = document.getElementById('modes-note');
 
@@ -98,15 +107,7 @@ let waiting = null;
 
 /** The CTSS instructions are chrome shown once per page load, never paper ink. */
 let liveGuideShown = false;
-
-/**
- * Keys pressed while the machine was printing.
- *
- * The 1050 keyboard locks during a transmission, so on the real machine these
- * keystrokes could not happen at all. Holding them is the kinder reading of the
- * same rule: nothing reaches the paper out of turn, and nothing is lost.
- */
-const typeahead = [];
+let portGuideShown = false;
 
 // --- the desk -------------------------------------------------------------
 
@@ -148,6 +149,14 @@ function renderRows(name, options, { unavailable = [] } = {}) {
     const label = document.createElement('span');
     label.className = 'row-label';
     label.textContent = option.label;
+    if (name === 'version' && option.key === '1966') {
+      const marker = document.createElement('sup');
+      marker.className = 'row-marker';
+      marker.textContent = '*';
+      marker.setAttribute('aria-hidden', 'true');
+      label.appendChild(marker);
+      row.setAttribute('aria-describedby', 'version-source-note');
+    }
 
     const line = document.createElement('span');
     line.className = 'row-line';
@@ -164,6 +173,7 @@ function renderRows(name, options, { unavailable = [] } = {}) {
 /** Show one desk screen. The first screen has nothing behind it, so no BACK. */
 function showScreen(name) {
   liveGuide.hidden = true;
+  portGuide.hidden = true;
   document.body.append(backButton);
   intro.hidden = false;
   form.hidden = true;
@@ -247,6 +257,11 @@ liveGuideDismiss.addEventListener('click', () => {
   keepFocus();
 });
 
+portGuideDismiss.addEventListener('click', () => {
+  portGuide.hidden = true;
+  keepFocus();
+});
+
 /** The desk's own answer when the line was up a moment ago and is not now. */
 function lineDown() {
   note.textContent = LINE_DOWN;
@@ -261,9 +276,11 @@ function lineDown() {
  * mode had one, and to the modes otherwise.
  */
 async function main() {
-  const lineUp = await liveLineAvailable();
+  const availability = Object.fromEntries(await Promise.all(
+    Object.entries(MACHINE_PACKS).map(async ([key, url]) => [key, await liveLineAvailable(fetch, url)]),
+  ));
+  const lineUp = Object.values(availability).some(Boolean);
   renderRows('modes', MODES, { unavailable: lineUp ? [] : ['live'] });
-  renderRows('version', VERSIONS);
 
   if (!lineUp) {
     note.textContent = LINE_DOWN;
@@ -279,24 +296,29 @@ async function main() {
       showScreen('modes');
       mode = await askRows('modes', MODES);
       if (!mode) continue;                    // nothing behind the first screen
-      screen = needsVersion(mode) ? 'version' : mode.kind === 'live' ? 'loader' : 'paper';
+      screen = needsVersion(mode) ? 'version' : 'paper';
       continue;
     }
 
     if (screen === 'version') {
+      renderRows('version', VERSIONS, {
+        unavailable: mode.kind === 'live'
+          ? VERSIONS.filter((choice) => !availability[choice.key]).map((choice) => choice.key)
+          : [],
+      });
       showScreen('version');
       version = await askRows('version', VERSIONS);
       if (!version) {
         screen = 'modes';
         continue;
       }
-      screen = 'paper';
+      screen = mode.kind === 'live' ? 'loader' : 'paper';
       continue;
     }
 
     if (screen === 'loader') {
       showScreen('loader');
-      screen = await loadMachine(mode);
+      screen = await loadMachine(mode, version);
       continue;
     }
 
@@ -310,7 +332,7 @@ async function main() {
  * The worker does the work; this only draws what it reports. A failure is not
  * a dead end: the desk says why and goes back to the modes.
  */
-async function loadMachine(mode) {
+async function loadMachine(mode, version) {
   loaderLine.textContent = 'Bringing the machine up.';
   loaderDetail.textContent = 'Loading the emulator worker.';
   setLoaderProgress(2, 'Loading the emulator worker.');
@@ -350,7 +372,7 @@ async function loadMachine(mode) {
   setLoaderProgress(10, 'Worker online.');
 
   const booted = await line.boot(
-    new URL('../modes/emulate/ctss-dasd.pack', import.meta.url),
+    MACHINE_PACKS[version.key],
     new URL('../modes/emulate/cmd.cbn', import.meta.url),
   );
   if (!booted) {
@@ -417,6 +439,7 @@ async function session(mode, version) {
   generation += 1;             // the abandoned loop stops at its next check
   cancelWait();
   liveGuide.hidden = true;
+  portGuide.hidden = true;
   line?.close();
   if (mode.kind === 'live') mode.line = null;
   onBack = null;
@@ -429,6 +452,11 @@ async function converseScript(mode, version, mine) {
   const session = await open(mode, version);
   if (mine !== generation) return 'back';
 
+  if (session.blankLineEnds && !portGuideShown) {
+    portGuideShown = true;
+    portGuide.hidden = false;
+  }
+
   await printer.print(session.greeting);
   await printer.newline(2);
 
@@ -437,17 +465,10 @@ async function converseScript(mode, version, mine) {
     await printer.newline(2);
   }
 
-  if (session.blankLineEnds) {
-    await printer.print('    TREAD READS CARDS UNTIL ONE IS BLANK . RETURN TWICE TO SEND .');
-    await printer.newline(2);
-  }
-
   for (;;) {
     if (mine !== generation) return 'back';
 
-    // The INPUT prompt is TREAD's, printed when it reads from the console, so
-    // it belongs to the 1965b code rather than to either script. See
-    // references/1965b-CTSS-reconstruction/etc/running-eliza.txt.
+    // The recovered TREAD prints INPUT. The 1966 port reuses that SLIP reader.
     if (session.prompt) {
       await printer.print(session.prompt);
       await printer.newline();
@@ -465,7 +486,7 @@ async function converseScript(mode, version, mine) {
       if (!(error instanceof SlipFault)) throw error;
       await printer.print(`SLIP FAULT . ${error.message}`);
       await printer.newline();
-      await printer.print('THE 1965B CODE HAS NO PATH THROUGH THIS . SEE REFERENCES .');
+      await printer.print(session.faultText ?? 'THE PROGRAM STOPPED . SEE REFERENCES .');
     }
     await printer.newline(2);
   }
@@ -494,6 +515,7 @@ async function converseLive(line, mine) {
     output.push(text);
     lastPrint = printMachine(text);
   };
+  line.flushPrint();
   if (mine !== generation) return 'back';
 
   if (!liveGuideShown) {
@@ -542,8 +564,8 @@ async function converseLive(line, mine) {
 
 /**
  * Open a conversation in the chosen mode. Modes 1 and 2 read the same two
- * archive scripts; the port runs them on the recovered 1965b code, so the 1966
- * script runs on a program that predates half of what it asks for.
+ * archive scripts. The port selects the recovered 1965b program or the
+ * separately reconstructed 1966 program along with that version's script.
  *
  * Mode 4 reads its own script and is asynchronous, because the local encoder is
  * warmed in the background. It answers from literals the whole time that is
@@ -556,12 +578,17 @@ async function open(mode, version) {
   const tape = TAPES[version.key];
 
   if (mode.key === 'port') {
-    const eliza = new ElizaPort(tape.script);
+    const eliza = tape.dialect === '1966'
+      ? new ElizaPort1966(tape.script)
+      : new ElizaPort(tape.script);
     return {
       greeting: eliza.greeting,
       respond: (text) => eliza.respond(text),
       prompt: 'INPUT',
       blankLineEnds: true,
+      faultText: tape.dialect === '1965b'
+        ? 'THE 1965B CODE HAS NO PATH THROUGH THIS . SEE REFERENCES .'
+        : 'THE RECONSTRUCTED 1966 PROGRAM STOPPED . SEE REFERENCES .',
     };
   }
 
@@ -741,21 +768,14 @@ keyboard.addEventListener('keydown', (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.key !== 'Enter' && event.key !== 'Backspace' && event.key.length !== 1) return;
   event.preventDefault();
+  if (event.repeat) return;
   press(event.key);
 });
 
-/** Take a keystroke, or hold it until the machine asks for one. */
+/** The interlocked keyboard accepts one key only when the 1052 is ready. */
 function press(key) {
-  if (!waiting) {
-    typeahead.push(key);
-    return;
-  }
+  if (!waiting || printer.busy) return;
   apply(key);
-}
-
-/** Drain held keystrokes. Stops as soon as one of them ends the wait. */
-function pump() {
-  while (typeahead.length > 0 && waiting) apply(typeahead.shift());
 }
 
 function apply(key) {
@@ -767,6 +787,8 @@ function apply(key) {
       printer.rubout();
     }
   } else if (key.length === 1) {
+    // The recovered CTSS instructions cap each input line at 72 columns.
+    if (waiting.terse && waiting.text.length >= 72) return;
     waiting.text += key;
     printer.echo(key.toUpperCase(), { ribbon: 'red' });
   }
@@ -784,7 +806,6 @@ function apply(key) {
 function readText(blankLineEnds, terse = false) {
   return new Promise((resolve) => {
     waiting = { kind: 'line', text: '', lines: [], blankLineEnds, terse, resolve };
-    pump();
   });
 }
 

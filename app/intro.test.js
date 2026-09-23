@@ -23,20 +23,20 @@ test('the desk offers four programs, one line each', () => {
   assert.deepEqual(MODES.map((m) => m.line), [
     'Written in modern JavaScript',
     'Archeological rewrite in JavaScript',
-    'In-browser emulation of the original experience, IBM 7094 mainframe',
+    'ELIZA running under CTSS on an emulated IBM 7094',
     'The original concepts (decomposition rules, pattern matching, response lists, and conversational memory) but extended',
   ]);
 });
 
-test('only the modes that read an archive tape have a version to choose', () => {
-  assert.deepEqual(MODES.filter(needsVersion).map((m) => m.key), ['rewrite', 'port']);
-  assert.equal(needsVersion(MODES.find((m) => m.key === 'live')), false);
+test('historical modes choose a paired program and script', () => {
+  assert.deepEqual(MODES.filter(needsVersion).map((m) => m.key), ['rewrite', 'port', 'live']);
+  assert.equal(needsVersion(MODES.find((m) => m.key === 'live')), true);
   assert.equal(needsVersion(MODES.find((m) => m.key === 'extended')), false);
   assert.equal(needsVersion(null), false);
   assert.deepEqual(VERSIONS.map((v) => v.label), ['1965B', '1966']);
   assert.deepEqual(VERSIONS.map((v) => v.line), [
-    'Earlier recovered source.',
-    'The famous version the CACM paper refers to. Less hardcoded (added the NEWKEY function and keyword stack).',
+    'Recovered program and its DOCTOR script.',
+    'Reconstructed program and the published DOCTOR script.',
   ]);
 });
 
@@ -47,7 +47,7 @@ test('BACK is not offered on the first screen, and unwinds one screen at a time'
   assert.equal(previousScreen('modes'), null);
   assert.equal(previousScreen('version', script), 'modes');
   assert.equal(previousScreen('paper', script), 'version');
-  assert.equal(previousScreen('paper', live), 'modes');
+  assert.equal(previousScreen('paper', live), 'version');
   assert.equal(previousScreen('paper'), 'modes');
 });
 

@@ -1,7 +1,8 @@
 # IBM 7094 emulator — design and state
 
-Mode 3 of ELIZA 2027: run the recovered MAD-SLIP ELIZA the way it actually ran,
-by emulating the machine underneath it rather than the program on top of it.
+Mode 3 of ELIZA 2027: run native MAD-SLIP ELIZA under CTSS on an emulated 7094.
+The 1965b disk uses the recovered program. The 1966 disk uses an inferred MAD
+continuation because its original listing has not been recovered.
 
 ## The target
 
@@ -72,9 +73,8 @@ recovers the records from it, and the shapes that come back are the ones CTSS
 writes — a 435 word record on each track followed by a 31 and a 14, under a
 home address of `XXXXXX`.
 
-Booting is under way and does not finish, but it gets a long way. `src/boot.js`
-deposits the same twenty-one word loader s709's console deposits and starts the
-processor at 2. Against a real disk:
+`src/boot.js` deposits the same twenty-one word loader s709's console deposits
+and starts the processor at 2. Against the reconstructed CTSS disk:
 
 - the loader resets the channel, seeks, polls the seek with TCM, sends the read
   order, reads a seven word bootstrap into low core, and falls into the channel
@@ -85,14 +85,12 @@ processor at 2. Against a real disk:
   and time off the Chronolog clock, enables channel traps, and writes to the
   printer
 
-and then executes a programmed halt — `HTR` at B core 35577 — during its own
-initialisation. So the machine reads CTSS and starts running it, and stops
-partway through startup. It does not reach `READY.`
-
-Finding out why wants a side by side instruction trace against s709, which
-boots the same disk to `READY.` on this machine. Everything up to the halt is
-already known to agree, because the supervisor could not have got that far
-otherwise; the question is only what it tests just before it stops.
+The worker continues through CTSS startup to `READY.`. The operator can log in
+to the restored ELIZA account and run the program installed on the chosen disk.
+The 1965b image holds the recovered executable and its script 100. The separate
+1966 image holds the inferred executable and the published DOCTOR script as
+script 100. The browser displays the 7750 line; CTSS and ELIZA generate the
+output.
 
 `node --test` covers the instruction set at the places a two-half word
 representation can go wrong — sign-and-magnitude arithmetic, carries across the
@@ -122,27 +120,22 @@ Floating point is the one place that uses BigInt: a 54-bit fraction squared is
 later as a MAD program printing believable garbage. Integer work stays on plain
 numbers, which is what the inner loops need.
 
-## What is next
+## Program versions
 
-1. **Why the supervisor halts during startup.** Trace against s709 —
-   `runctss`, then telnet to the port in `env.sh` — and find the first
-   instruction where the two machines disagree. Three faithfulness bugs have
-   already been found this way, and in every one of them s709 was right where
-   SIMH differed: the one way BCD zero conversion, TCO on a 7909 meaning "in
-   operation", and an inhibited condition still reaching the condition
-   register.
-2. **Wiring the 7750 to the page.** The controller is written and a line's
-   printed output is a callback, so `app/`'s typewriter can be the far end of
-   one: the browser typewriter becomes a real console rather than a simulation
-   of one. Nothing about that is hard now; it waits on there being a CTSS to
-   talk to.
-3. **Booting CTSS.** Get through the disk loader and supervisor initialisation
-   and reach `READY.` This is where the emulator stops being a set of parts
-   that each behave correctly and starts being a machine, and it is where the
-   remaining unknowns are.
-4. **Building SLIP and ELIZA on it.** `runcom make` under the SLIP and ELIZA
-   accounts, exactly as the reconstruction's README does it — the MAD compiler
-   and FAP assembler are already on the CTSS tapes and do not need reimplementing.
+`modes/emulate/ctss-dasd.pack` carries the recovered 1965b program and its
+matching `.TAPE. 100`. `modes/emulate/ctss-1966-dasd.pack` carries an inferred
+MAD program and the CACM DOCTOR script as `.TAPE. 100`. Both boot through the
+same 7094, CTSS, and 7750 worker. `app/main.js` chooses the image with the
+version; the operator still uses `R ELIZA` and enters `100` at ELIZA's script
+prompt. The 1966 source and its derivation are in `modes/emulate/native/`.
+
+The 1966 source changes the recovered driver's keyword table to 128 entries,
+keeps ranked matches in a keystack, and interprets `NEWKEY`, reassembly links,
+and `PRE`. The original 1966 MAD listing is missing, so this source cannot be
+called a recovered transcription. Compilation under CTSS produced `ELIZA SAVED`
+with program length 02365 octal words. A native s709 run matched the separate
+JavaScript reconstruction on ordinary rules, reassembly links, `PRE`, and a
+seven-turn `DREAMT` sequence that reaches `NEWKEY` and a lower-ranked keyword.
 
 ## Building a real disk to test against
 

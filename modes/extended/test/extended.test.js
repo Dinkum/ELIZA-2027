@@ -32,8 +32,7 @@ const fresh = (options) => new ExtendedEliza(structuredClone(SCRIPT), options);
 
 /** Which family produced the last reply, read off the trace. */
 function winningFamily(eliza) {
-  const terminal = eliza.lastTrace.filter((step) =>
-    ['reassemble', 'topic-prompt', 'exhausted'].includes(step.step));
+  const terminal = eliza.lastTrace.filter((step) => step.step === 'reassemble');
   const last = terminal[terminal.length - 1];
   return last ? last.family ?? null : null;
 }
@@ -166,8 +165,70 @@ test('negation and tense survive normalization and reach the capture', () => {
   const eliza = fresh();
   eliza.respond('i am not sad because my boss does not listen');
   const { captures } = positive(eliza);
-  // "doesn't" was expanded, and the "not" is still there to be quoted.
+  // The negated feeling is not treated as an affirmative state; the reason is
+  // still available to the neutral because pattern.
+  assert.equal(captures.feeling, undefined);
   assert.equal(captures.reason, 'my boss does not listen');
+});
+
+test('hyphenated aliases and tags survive tokenization', () => {
+  const anxious = fresh();
+  anxious.respond('i am on-edge');
+  assert.equal(winningFamily(anxious), 'ANXIETY');
+  assert.equal(positive(anxious).captures.state, 'on-edge');
+  assert.ok(anxious.lastTrace.find((step) => step.step === 'normalize').words.includes('anxious'));
+
+  const family = fresh();
+  family.respond('my brother-in-law called');
+  assert.equal(winningFamily(family), 'FAMILY');
+  assert.equal(positive(family).captures.relative, 'brother-in-law');
+
+  const work = fresh();
+  work.respond('i got laid-off');
+  assert.equal(winningFamily(work), 'WORK_STRESS');
+  assert.ok(work.lastTrace.find((step) => step.step === 'normalize').words.includes('laid-off'));
+});
+
+test('spaced aliases and multiword contractions retain their original quote spans', () => {
+  const family = fresh();
+  family.respond('my brother in law called');
+  assert.equal(positive(family).captures.relative, 'brother in law');
+
+  const anxious = fresh();
+  anxious.respond('i am on edge');
+  assert.equal(positive(anxious).captures.state, 'on edge');
+
+  const contraction = fresh();
+  contraction.respond("i ain't got time");
+  assert.deepEqual(contraction.lastTrace.find((step) => step.step === 'normalize').words,
+    ['i', 'do', 'not', 'have', 'time']);
+});
+
+test('negated states do not trigger affirmative questions', () => {
+  const cases = [
+    ['i am not anxious because my boss helped', 'ANXIETY'],
+    ["i don't feel anxious", 'ANXIETY'],
+    ['i am not sick', 'HEALTH'],
+    ['i am not worthless', 'SELF_ESTEEM'],
+    ['i was never angry at him', 'ANGER'],
+    ['i am no longer lonely', 'LONELINESS'],
+    ['i am not drinking', 'SUBSTANCES'],
+    ['no one died', 'GRIEF'],
+  ];
+  for (const [input, family] of cases) {
+    const eliza = fresh();
+    eliza.respond(input);
+    assert.notEqual(winningFamily(eliza), family, `${family} asserted for ${input}`);
+  }
+
+  const because = fresh();
+  because.respond('i am not anxious because my boss helped');
+  assert.equal(winningFamily(because), 'FEELING_CAUSE');
+  assert.equal(positive(because).captures.feeling, undefined);
+
+  const contrast = fresh();
+  contrast.respond('i am not anxious, but i am sad');
+  assert.equal(positive(contrast).captures.feeling, 'sad');
 });
 
 /* -------------------------------------------------------------------------- */
@@ -495,11 +556,7 @@ test('a redirect hands the turn to the rule it names', () => {
   assert.equal(new ExtendedEliza(script).respond('alpha'), 'REDIRECTED');
 });
 
-test('a proposed family with no usable rule asks a topic-level question', () => {
-  // The design says a family can be proposed and then have no rule that fits;
-  // the script may then ask about the topic rather than invent details. No
-  // shipped family reaches this today, so it is exercised with a synthetic
-  // script, exactly as `redirect` is, instead of being left as dead code.
+test('a proposed family with no matching rule falls through to the script fallback', () => {
   const script = {
     greeting: 'x',
     tags: {},
@@ -509,7 +566,6 @@ test('a proposed family with no usable rule asks a topic-level question', () => 
         topic: 'lonely',
         rank: 5,
         examples: ['nobody ever calls me any more'],
-        topicPrompt: 'TOPIC LEVEL QUESTION',
         rules: [
           {
             id: 'LONELY.r',
@@ -519,17 +575,48 @@ test('a proposed family with no usable rule asks a topic-level question', () => 
           },
         ],
       },
+      {
+        id: 'GENERIC',
+        topic: 'general',
+        fallback: true,
+        rules: [{ id: 'GENERIC.r', patterns: [{ match: ['0'], templates: ['PLEASE GO ON'] }] }],
+      },
     ],
   };
   // A provider that proposes LONELY without any literal keyword being present.
   const proposing = { suggest: () => [{ family: 'LONELY', score: 0.9 }] };
   const eliza = new ExtendedEliza(script, { semantics: proposing });
   const reply = eliza.respond('nobody ever calls me any more');
-  assert.equal(reply, 'TOPIC LEVEL QUESTION');
-  const step = eliza.lastTrace.find((s) => s.step === 'topic-prompt');
-  assert.equal(step.family, 'LONELY');
-  // The topic is adopted, so a later follow-up can name it.
-  assert.equal(eliza.context.topic, 'lonely');
+  assert.equal(reply, 'PLEASE GO ON');
+  assert.equal(winningFamily(eliza), 'GENERIC');
+  assert.equal(eliza.lastTrace.at(-1).step, 'reassemble');
+  assert.equal(eliza.context.topic, null);
+});
+
+test('semantic suggestions cannot create a reply without a matched pattern', () => {
+  for (const family of ['FAMILY', 'WORK_STRESS', 'SLEEP_TIRED']) {
+    const eliza = fresh({ semantics: { suggest: () => [{ family, score: 1 }] } });
+    eliza.respond('purple monkey dishwasher');
+    assert.equal(winningFamily(eliza), 'GENERIC', `${family} claimed unrelated input`);
+    assert.equal(eliza.lastTrace.at(-1).step, 'reassemble');
+    assert.ok(!eliza.lastTrace.some((step) => step.step === 'topic-prompt'));
+  }
+});
+
+test('semantic work paraphrases still need an affirmative literal match', () => {
+  const proposing = { suggest: () => [{ family: 'WORK_STRESS', score: 1 }] };
+  const denied = fresh({ semantics: proposing });
+  denied.respond('he is not on my case');
+  assert.equal(winningFamily(denied), 'GENERIC');
+
+  const affirmed = fresh({ semantics: proposing });
+  affirmed.respond('he is on my case all day');
+  assert.equal(winningFamily(affirmed), 'WORK_STRESS');
+});
+
+test('a script without a matching fallback cannot emit an engine-authored reply', () => {
+  const eliza = new ExtendedEliza({ families: [] });
+  assert.throws(() => eliza.respond('purple monkey dishwasher'), /no matching fallback pattern/);
 });
 
 test('context and memory keep the state the design names', () => {

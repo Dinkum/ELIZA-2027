@@ -14,14 +14,14 @@
 export const MODES = [
   { key: 'rewrite', label: 'JS REWRITE', line: 'Written in modern JavaScript', kind: 'script' },
   { key: 'port', label: 'JS PORT', line: 'Archeological rewrite in JavaScript', kind: 'script' },
-  { key: 'live', label: 'EMULATION', line: 'In-browser emulation of the original experience, IBM 7094 mainframe', kind: 'live' },
+  { key: 'live', label: 'EMULATION', line: 'ELIZA running under CTSS on an emulated IBM 7094', kind: 'live' },
   { key: 'extended', label: 'EXTENDED', line: 'The original concepts (decomposition rules, pattern matching, response lists, and conversational memory) but extended', kind: 'own' },
 ];
 
-/** The two archive tapes. Only the modes that read one ask for this. */
+/** Each choice pairs a program with its DOCTOR script. */
 export const VERSIONS = [
-  { key: '1965b', label: '1965B', line: 'Earlier recovered source.' },
-  { key: '1966', label: '1966', line: 'The famous version the CACM paper refers to. Less hardcoded (added the NEWKEY function and keyword stack).' },
+  { key: '1965b', label: '1965B', line: 'Recovered program and its DOCTOR script.' },
+  { key: '1966', label: '1966', line: 'Reconstructed program and the published DOCTOR script.' },
 ];
 
 /** What the desk says when this browser cannot run the machine. */
@@ -36,12 +36,11 @@ export const TITLES = { modes: 'Pick A Mode', version: 'Pick A Version' };
 /**
  * Where the line the operator runs.
  *
- * `script` reads one of the two archive tapes, `live` is the machine's own
- * console line, and `own` carries a script of its own — so only the first kind
- * has a version to ask about.
+ * `script` reads one of the two archive tapes, `live` boots the corresponding
+ * compiled CTSS disk, and `own` carries a script of its own.
  */
 export function needsVersion(mode) {
-  return mode?.kind === 'script';
+  return mode?.kind === 'script' || mode?.kind === 'live';
 }
 
 /**
@@ -86,7 +85,23 @@ export async function liveLineAvailable(fetchImpl = globalThis.fetch, packUrl = 
     const signal = typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(2500) : undefined;
     const response = await fetchImpl(packUrl, { headers: { range: 'bytes=0-11' }, signal });
     if (!response?.ok) return false;
-    const head = await response.arrayBuffer();
+    let head;
+    if (response.body?.getReader) {
+      const reader = response.body.getReader();
+      const bytes = new Uint8Array(12);
+      let count = 0;
+      while (count < bytes.length) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const take = Math.min(value.byteLength, bytes.length - count);
+        bytes.set(value.subarray(0, take), count);
+        count += take;
+      }
+      await reader.cancel();
+      head = bytes.subarray(0, count).buffer;
+    } else {
+      head = await response.arrayBuffer();
+    }
     if (head.byteLength < 12) return false;
     const view = new DataView(head);
     return view.getUint32(0) === 0x50544b31 && view.getUint32(4) === 2;

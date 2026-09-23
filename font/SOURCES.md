@@ -6,7 +6,15 @@ The browser fonts are [CTSS-Correspondence-938.woff2](CTSS-Correspondence-938.wo
 
 - The character repertoire comes from page 19 of the [MIT typeface archive scan](../references/IBM-938-standard-correspondence-typefaces.pdf), explicitly marked `Standard Correspondence`, `#938`, and `Printed on 1050`. A separate `ball 938` CTSS print test appears on page 31. Both pages are rendered as 300 DPI grayscale images, then thresholded consistently for the build. The archive does not establish that the two sheets used the same physical element or ribbon.
 - The [IBM 1050 manual](../references/IBM-1050-system-operation-manual-1965.pdf) describes 88 printable positions, 44 per shift (PDF page 12), and charts the terminal character codes in figure 44 (PDF page 85).
-- [CTSS Programming Staff Note 69](https://web.mit.edu/Saltzer/www/publications/ctss/psn-69.pdf) identifies the 938 standard correspondence ball as the then-default 1050 element.
+- [CTSS Programming Staff Note 69](../references/1967-CTSS-PSN-69.pdf) identifies the 938 standard correspondence ball as the then-default 1050 element and documents character translation. It does not add glyph impressions.
+- [CTSS Programming Staff Note 56](../references/1965-CTSS-PSN-56.pdf) distinguishes the 1050 correspondence ball then in use from the planned Project MAC ball and lists graphic substitutions. It does not add glyph impressions.
+
+The 84-page MIT typeface scan has two pages explicitly identifying 938 output:
+the labeled 1050 specimen on page 19 and the CTSS graphics test on page 31.
+Page 22 is labeled 942 and cannot be used as a 938 outline source. Generic
+Selectric correspondence samples do not identify the particular 938 element
+that made these impressions. The five single-impression glyphs therefore stay
+marked uncertain rather than being redrawn from an unverified typeball.
 
 The core font follows the 938 element's 88 printed positions: 86 distinct characters because comma and period each occur twice. No core sign is invented. Space is a carrier advance, not an impression. The build removes the slight slope of the scanned proof, registers impressions to a common baseline, rejects poor matches, and keeps each repaired consensus on the clearer proof impression's vertical registration. It removes isolated specks from symbols but does not morphologically close their narrow white gaps: the original scan already separates the bars of `=`, the dot of `!`, and the stems of `#`. For symbols with only two usable strikes it retains the clearer page-31 outline rather than letting the over-inked page-19 strike fill counters or merge separate marks. The sole `±` strike joins plus and minus at a narrow ink neck; separating them is an explicitly uncertain inference from the identified sign. Letters, digits, and symbols with more strikes use a consensus so isolated ink dropouts are not made permanent. Of 86 glyphs, 81 have at least two accepted impressions. `◇`, `_`, `¢`, `@`, and `±` have only one usable impression and remain uncertain. [manifest.json](manifest.json) records accepted sample locations for every glyph. None of the marks is claimed as verified damage to a particular element.
 

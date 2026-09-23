@@ -42,7 +42,7 @@ import { hashWord, hash } from '../../shared/hollerith.js';
  * hashes the sublist's address. A number typed by the operator arrives here
  * too. Both are hashed rather than refused, as they were on the 7094.
  */
-function HASH(datum, n) {
+export function HASH(datum, n) {
   if (typeof datum === 'string') return hashWord(datum, n);
   if (typeof datum === 'number') return hash(BigInt(Math.trunc(datum)), n);
   if (datum && typeof datum.addr === 'number') return hash(BigInt(datum.addr), n);
@@ -62,7 +62,7 @@ const NOMATCH = ['PLEASE CONTINUE', 'HMMM', 'GO ON , PLEASE', 'I SEE'];
  * A word of more than six characters occupies several cells, so both sides are
  * gathered a cell at a time into FIRST and SECOND and compared.
  */
-function TESTS(cand, s) {
+export function TESTS(cand, s) {
   const store = RDRCPY(s); // STORE=S
   const reader = SEQRDR(cand);
   const first = [];
@@ -116,9 +116,12 @@ export class ElizaPort {
   /**
    * The setup at the head of ELIZA.MAD, down to the end of the BEGIN loop:
    * read the script tape record by record and file each keyword list under
-   * HASH of its keyword, with NONE kept apart in KEY(32).
+   * HASH of its keyword, with NONE kept apart after the hashed slots. The
+   * recovered 1965b program uses 32 slots; the 1966 paper specifies 128.
    */
-  constructor(scriptText) {
+  constructor(scriptText, { hashBits = 5 } = {}) {
+    this.hashBits = hashBits;
+    this.noneIndex = 1 << hashBits;
     this.TEST = LIST();
     this.INPUT = LIST();
     this.OUTPUT = LIST();
@@ -129,7 +132,7 @@ export class ElizaPort {
     this.MINE = 0;
     this.MYLIST = LIST();
     this.KEY = [];
-    for (let i = 0; !(i > 32); i += 1) this.KEY[i] = LIST(); // KEYLST
+    for (let i = 0; !(i > this.noneIndex); i += 1) this.KEY[i] = LIST(); // KEYLST
     this.MEMORY = 0;
 
     const SCRIPT = new Tape(scriptText);
@@ -150,7 +153,7 @@ export class ElizaPort {
       }
 
       if (TOP(this.INPUT) === 'NONE') {
-        NEWTOP(LSSCPY(this.INPUT, LIST9()), this.KEY[32]);
+        NEWTOP(LSSCPY(this.INPUT, LIST9()), this.KEY[this.noneIndex]);
       } else if (TOP(this.INPUT) === 'MEMORY') {
         POPTOP(this.INPUT);
         this.MEMORY = POPTOP(this.INPUT);
@@ -158,7 +161,7 @@ export class ElizaPort {
           LSSCPY(POPTOP(this.INPUT), this.MYTRAN[i]);
         }
       } else {
-        NEWBOT(LSSCPY(this.INPUT, LIST9()), this.KEY[HASH(TOP(this.INPUT), 5)]);
+        NEWBOT(LSSCPY(this.INPUT, LIST9()), this.KEY[HASH(TOP(this.INPUT), hashBits)]);
       }
     }
   }

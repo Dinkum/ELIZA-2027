@@ -63,7 +63,7 @@
   },
   "vectors": {
     "file": "families.vectors.json",
-    "scriptSha256": "21dc90c1884270d66c4bb02e7603c239657341591d46f746730a3d1914c6a062",
+    "scriptSha256": "08935aeb0df933c47fead3550e3f5e0d4dc998aff7120d5c2ee8a3eea8d5e4e4",
     "families": 15,
     "dimensions": 384
   }

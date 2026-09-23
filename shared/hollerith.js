@@ -14,8 +14,10 @@
  * HASH, so both are kept here rather than being replaced by a modern hash.
  * Everything else in this engine is ordinary JavaScript.
  *
- * Source: the recovered MAD listing (references/1965b-recovered-ELIZA.mad) and
- * the FAP SLIP HASH analysed in references/1966-anthay-reference-implementation.
+ * Sources: the recovered MAD listing (references/1965b-MIT-original-printout.pdf)
+ * and the original FAP SLIP HASH (references/1960s-MIT-FAP-original.pdf, p. 15).
+ * The searchable HASH transcription is in
+ * references/1965b-CTSS-reconstruction/eliza/src/SLIP/SLIP-fap/hash.fap.
  */
 
 // IBM 7090 BCD, code -> character. Code 14 (octal) is a prime, not a quote.

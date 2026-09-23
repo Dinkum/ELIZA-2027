@@ -40,10 +40,10 @@ venv/
 # committed: it describes current state and is rewritten as the repo moves.
 /wiki/
 
-# Reference material is read-only source, cited and never edited: recovered MAD,
-# the CACM paper, the CTSS reconstruction and its s709 tarballs. It stays on the
-# host, so nothing under it is committed — including the nested ignores there,
-# which are now redundant but harmless.
+# Reference source artifacts are read-only: recovered MAD, the CACM paper, the
+# CTSS reconstruction and its s709 tarballs. Provenance notes in references/
+# are maintained locally. The directory stays on the host, so nothing under it
+# is committed — including the nested ignores there, which are redundant.
 /references/
 
 # Leftovers from driving s709 by hand during differential debugging: its print

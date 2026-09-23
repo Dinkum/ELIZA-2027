@@ -38,7 +38,7 @@
  */
 
 import { HALF } from '../word.js';
-import { SEL_READ, SEL_WRITE, SEL_SENSE, SEQUENCE_CHECK } from '../channel9.js';
+import { SEL_READ, SEL_WRITE, SEL_SENSE, SEQUENCE_CHECK, INHIBIT_ATTENTION1 } from '../channel9.js';
 
 /** Lines, plus the one the operator's own typewriter is wired to. */
 export const LINE_COUNT = 32;
@@ -64,25 +64,12 @@ const COMPLETION = 0o3000;
 const COMPLETION_MAX = 31;
 
 /**
- * How many of the controller's own cycles pass before it queues up the
- * completions a line owes and asks for attention. s709's communications task
- * does the same on its idle path — `commwork`, "If idle, check for queued
- * completions", gated by `MAXIDLECNT 5` (commdev.c:514-531).
+ * s709 checks idle lines every 10 ms and reports completions after six polls.
+ * The emulator checks its channel much faster, so it uses the same wall time
+ * before the five channel checks below can raise attention.
  */
 const IDLE_POLLS = 5;
-
-/**
- * How much a line may owe before the controller asks for attention on its own.
- * CTSS stops accepting console output once a line's buffers are full — the job
- * goes to STATUS 5, OUTPUT WAIT ("OUTPUT BUFFERS FILLED", SCDA0054) and only
- * arriving completions can free it (ADPI `RESTRT`). Measured on this machine
- * the wall is ~1180 unaccounted characters, so the controller speaks up well
- * before it, and stays quiet through the dial-up handshake and the login
- * banner, where a handful of characters are all that is owed. Raising it for
- * every message instead disturbs that handshake: CTSS re-runs its line set-up
- * and the login job walks off into the password-retry path.
- */
-const COMPLETION_LIMIT = 1024;
+const COMPLETION_IDLE_MS = 60;
 
 /** Terminal identifiers, sent when the controller asks a new line who it is. */
 export const ID_KSR35 = 1;
@@ -186,13 +173,13 @@ export class CommunicationsController {
 
     /**
      * Completions owed to the 7094 that it has not been told about yet, and
-     * how long the controller has been idle since. These two are s709's
-     * `complcount`/`idlecnt` pair (commdev.c): a line's completions become a
-     * message of their own once the controller has been idle for IDLE_POLLS
-     * cycles, and attention is raised for them.
+     * when it can report them. This models s709's `complcount`/`idlecnt` pair:
+     * a line's completions become a message of their own after an idle
+     * interval, and attention is raised for them.
      */
     this.signalled = false;
     this.idlePolls = 0;
+    this.completionReadyAt = 0;
   }
 
   reset() {
@@ -204,6 +191,7 @@ export class CommunicationsController {
     this.buffer = [];
     this.signalled = false;
     this.idlePolls = 0;
+    this.completionReadyAt = 0;
     for (const line of this.lines) {
       line.input.length = 0;
       line.output.length = 0;
@@ -431,7 +419,10 @@ export class CommunicationsController {
     // A line that has just been sent a message owes completions for it: that
     // is a new thing for the controller to report, so the idle cycle below is
     // allowed to raise attention for it again.
-    if (line.notReturned > 0) this.signalled = false;
+    if (line.notReturned > 0) {
+      this.signalled = false;
+      this.completionReadyAt = Date.now() + COMPLETION_IDLE_MS;
+    }
     channel.setEnd();
   }
 
@@ -446,7 +437,8 @@ export class CommunicationsController {
    */
   get wantsAttention() {
     return this.enabled && this.state === IDLE && !this.signalled
-      && this.lines.some((line) => line.notReturned >= COMPLETION_LIMIT);
+      && Date.now() >= this.completionReadyAt
+      && this.lines.some((line) => line.notReturned > 0);
   }
 
   /**
@@ -456,7 +448,8 @@ export class CommunicationsController {
    * own and raises attention (commdev.c commwork:514-531).
    */
   idle(channel) {
-    if (!this.wantsAttention || channel.inInterrupt) {
+    if (!this.wantsAttention || channel.inInterrupt ||
+        (channel.sms & INHIBIT_ATTENTION1)) {
       if (!this.wantsAttention) this.idlePolls = 0;
       return;
     }
@@ -527,11 +520,9 @@ export class CommunicationsController {
     for (let number = 0; number < this.lines.length; number++) {
       const line = this.lines[number];
 
-      if (line.notReturned > 0) {
-        // Account for what the line has printed, so the 7094 can keep track of
-        // the buffer space it is using. A line can owe more than one message
-        // holds, so the fact that some of it has now been handed over is what
-        // lets the idle cycle ask for attention again for the rest.
+      while (line.notReturned > 0) {
+        // Send every completion in groups of at most 31 before any input from
+        // the same line, as s709's commgo does.
         const count = Math.min(line.notReturned, COMPLETION_MAX);
         line.notReturned -= count;
         this.signalled = false;
@@ -550,8 +541,10 @@ export class CommunicationsController {
       }
     }
 
+    // Even a three-character completion message needs its own EOM; otherwise
+    // CTSS reads old core words as the end of the next input card.
+    characters.push(END_OF_MEDIUM);
     while (characters.length % 3 !== 0) characters.push(END_OF_MEDIUM);
-    if (characters.length === 0) characters.push(END_OF_MEDIUM, END_OF_MEDIUM, END_OF_MEDIUM);
     return pack(characters);
   }
 

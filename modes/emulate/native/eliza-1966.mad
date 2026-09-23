@@ -1,0 +1,236 @@
+            NORMAL MODE IS INTEGER                                              000010
+           R CHANGE MADE DEC 2024 TO SATISFY COMMON AREA REQS                   000011
+            PROGRAM COMMON AVSL,W                                               000012
+            DIMENSION W(100)                                                    000013
+           R END OF CHANGE                                                      000014
+            DIMENSION KEY(128),MYTRAN(4),KSIT(100),KSWD(100)                    000015
+            INITAS.(0)                                                          000016
+            PRINT COMMENT $WHICH SCRIPT DO YOU WISH TO PLAY$                    000017
+            READ FORMAT SNUMB,SCRIPT                                            000018
+           R CHANGE MADE DEC 2024 TO INIT PUBLIC LIST W(1)                      000019
+            LIST.(W(1))                                                         000020
+           R END OF CHANGE                                                      000021
+            LIST.(TEST)                                                         000022
+            LIST.(INPUT)                                                        000023
+            LIST.(OUTPUT)                                                       000024
+            LIST.(JUNK)                                                         000025
+            LIMIT=1                                                             000026
+            LSSCPY.(TREAD.(INPUT,SCRIPT),JUNK)                                  000027
+            MTLIST.(INPUT)                                                      000028
+            T'H MLST, FOR I=1,1, I .G. 4                                        000029
+MLST        LIST.(MYTRAN(I))                                                    000030
+            MINE=0                                                              000031
+            LIST.(MYLIST)                                                       000032
+            T'H KEYLST, FOR I=0,1, I .G. 128                                    000033
+KEYLST      LIST.(KEY(I))                                                       000034
+           R* * * * * * * * * * READ NEW SCRIPT                                 000035
+BEGIN       MTLIST.(INPUT)                                                      000036
+            NODLST.(INPUT)                                                      000037
+            LISTRD.(INPUT,SCRIPT)                                               000038
+            W'R LISTMT.(INPUT) .E. 0                                            000039
+                TXTPRT.(JUNK,0)                                                 000040
+                MTLIST.(JUNK)                                                   000041
+                T'O START                                                       000042
+            E'L                                                                 000043
+            W'R TOP.(INPUT) .E. $NONE$                                          000044
+                NEWTOP.(LSSCPY.(INPUT,LIST.(9)),KEY(128))                       000045
+                T'O BEGIN                                                       000046
+               OR W'R TOP.(INPUT) .E. $MEMORY$                                  000047
+                POPTOP.(INPUT)                                                  000048
+                MEMORY=POPTOP.(INPUT)                                           000049
+                T'H MEM, FOR I=1,1, I .G. 4                                     000050
+MEM             LSSCPY.(POPTOP.(INPUT),MYTRAN(I))                               000051
+                T'O BEGIN                                                       000052
+               O'E                                                              000053
+                NEWBOT.(LSSCPY.(INPUT,LIST.(9)),KEY(HASH.                       000054
+           1    (TOP.(INPUT),7)))                                               000055
+                T'O BEGIN                                                       000056
+            E'L                                                                 000057
+           R* * * * * * * * * * BEGIN MAJOR LOOP                                000058
+START       TREAD.(MTLIST.(INPUT),0)                                            000059
+                        KEYWRD=0                                                000060
+                        NK=0                                                    000061
+                        HIGEST=0                                                000062
+                        LIMIT=LIMIT+1                                           000063
+                        W'R LIMIT .E. 5, LIMIT=1                                000064
+                        W'R LISTMT.(INPUT) .E. 0, T'O ENDPLA                    000065
+                        W'R TOP.(INPUT) .E. $+$                                 000066
+                            CHANGE.(KEY,MYTRAN)                                 000067
+                            T'O START                                           000068
+                        E'L                                                     000069
+                        W'R TOP.(INPUT) .E. $*$, T'O NEWLST                     000070
+                        S=SEQRDR.(INPUT)                                        000071
+NOTYET           W'R S .L. 0                                                    000072
+                            SEQLR.(S,F)                                         000073
+                            T'O NOTYET                                          000074
+                        O'E                                                     000075
+                            WORD=SEQLR.(S,F)                                    000076
+                            W'R WORD .E. $.$ .OR. WORD .E. $,$ .OR.             000077
+           1                WORD .E. $BUT$                                      000078
+                                W'R NK .E. 0                                    000079
+                                    NULSTL.(INPUT,LSPNTR.(S),JUNK)              000080
+                                    MTLIST.(JUNK)                               000081
+                                    T'O NOTYET                                  000082
+                                O'E                                             000083
+                                    NULSTR.(INPUT,LSPNTR.(S),JUNK)              000084
+                                    MTLIST.(JUNK)                               000085
+                                    T'O ENDTXT                                  000086
+                                E'L                                             000087
+                            E'L                                                 000088
+                            W'R F .G. 0, T'O ENDTXT                             000089
+                            I=HASH.(WORD,7)                                     000090
+                            SCANER=SEQRDR.(KEY(I))                              000091
+                            SF=0                                                000092
+SEARCH                CAND=SEQLR.(SCANER,SF)                                    000093
+                            W'R SF .G. 0, T'O NOTYET                            000094
+                            W'R TOP.(CAND) .NE. WORD, T'O SEARCH                000095
+                            SS=S                                                000096
+                            READER=TESTS.(CAND,SS)                              000097
+                            W'R READER .E. 0, T'O SEARCH                        000098
+                            S=SS                                                000099
+                            W'R LSTNAM.(CAND) .NE. 0                            000100
+                                DL=LSTNAM.(CAND)                                000101
+SEQ                         W'R S .L. 0                                         000102
+                                    SEQLR.(S,F)                                 000103
+                                    T'O SEQ                                     000104
+                                O'E                                             000105
+                                    NEWTOP.(DL,LSPNTR.(S))                      000106
+                                E'L                                             000107
+                            E'L                                                 000108
+                            NEXT=SEQLR.(READER,FR)                              000109
+                            W'R FR .G. 0, T'O NOTYET                            000110
+                            RANK=0                                              000111
+                            W'R FR .L. 0                                        000112
+                                RANK=NEXT                                       000113
+                                NEXT=SEQLR.(READER,FR)                          000114
+                            E'L                                                 000115
+                            W'R NK .GE. 100, T'O ENDTXT                         000116
+                            NK=NK+1                                             000117
+                            W'R NK .E. 1 .OR. RANK .LE. HIGEST                  000118
+                                KSIT(NK)=READER                                 000119
+                                KSWD(NK)=WORD                                   000120
+                                W'R NK .E. 1, HIGEST=RANK                       000121
+                                T'O NOTYET                                      000122
+                            E'L                                                 000123
+                            T'H SHIFTK, FOR K=NK,-1,K .LE. 1                    000124
+SHIFTK                KSIT(K)=KSIT(K-1)                                         000125
+                            KSWD(K)=KSWD(K-1)                                   000126
+                            KSIT(1)=READER                                      000127
+                            KSWD(1)=WORD                                        000128
+                            HIGEST=RANK                                         000129
+                            T'O NOTYET                                          000130
+                        E'L                                                     000131
+ENDTXT           W'R NK .E. 0                                                   000132
+                            W'R LIMIT .E. 4 .AND. LISTMT.(MYLIST) .NE. 0        000133
+                                OUT=POPTOP.(MYLIST)                             000134
+                                TXTPRT.(OUT,0)                                  000135
+                                IRALST.(OUT)                                    000136
+                                T'O START                                       000137
+                            E'L                                                 000138
+                            T'O NONEKY                                          000139
+                        E'L                                                     000140
+NEXTK              W'R NK .E. 0, T'O NONEKY                                     000141
+                        IT=KSIT(1)                                              000142
+                        KEYWRD=KSWD(1)                                          000143
+                        T'H SHDOWN, FOR K=1,1,K .GE. NK                         000144
+SHDOWN            KSIT(K)=KSIT(K+1)                                             000145
+                        KSWD(K)=KSWD(K+1)                                       000146
+                        NK=NK-1                                                 000147
+                        W'R KEYWRD .E. MEMORY                                   000148
+                            I=HASH.(BOT.(INPUT),2)+1                            000149
+                            NEWBOT.(REGEL.(MYTRAN(I),INPUT,LIST.(MINE)),        000150
+           1                MYLIST)                                             000151
+                        E'L                                                     000152
+                        SEQLL.(IT,FR)                                           000153
+                        T'O MATCH                                               000154
+NONEKY            ES=BOT.(TOP.(KEY(128)))                                       000155
+                        T'O TRY                                                 000156
+MATCH              ES=SEQLR.(IT,FR)                                             000157
+                        W'R FR .G. 0, T'O NEXTK                                 000158
+                        W'R TOP.(ES) .E. $=$, T'O LINK                          000159
+TRY                  W'R YMATCH.(TOP.(ES),INPUT,MTLIST.(TEST)) .E. 0            000160
+           1            ,T'O MATCH                                              000161
+                        ESRDR=SEQRDR.(ES)                                       000162
+                        SEQLR.(ESRDR,ESF)                                       000163
+                        POINT=SEQLR.(ESRDR,ESF)                                 000164
+                        POINTR=LSPNTR.(ESRDR)                                   000165
+                        W'R ESF .E. 0                                           000166
+                            NEWBOT.(1,POINTR)                                   000167
+                            TRANS=POINT                                         000168
+                            T'O HIT                                             000169
+                        E'L                                                     000170
+                        T'H FNDHIT,FOR I=0,1,I .G. POINT                        000171
+FNDHIT           TRANS=SEQLR.(ESRDR,ESF)                                        000172
+                        W'R ESF .G. 0                                           000173
+                            SEQLR.(ESRDR,ESF)                                   000174
+                            SEQLR.(ESRDR,ESF)                                   000175
+                            TRANS=SEQLR.(ESRDR,ESF)                             000176
+                            SUBST.(1,POINTR)                                    000177
+                            T'O HIT                                             000178
+                        E'L                                                     000179
+                        SUBST.(POINT+1,POINTR)                                  000180
+                        T'O HIT                                                 000181
+HIT                  W'R TOP.(TRANS) .E. $NEWKEY$, T'O NEXTK                    000182
+                        W'R TOP.(TRANS) .E. $=$                                 000183
+                            ES=TRANS                                            000184
+                            T'O LINK                                            000185
+                        E'L                                                     000186
+                        W'R TOP.(TRANS) .E. $PRE$                               000187
+                            PR=SEQRDR.(TRANS)                                   000188
+                            SEQLR.(PR,F)                                        000189
+                            TMPLET=SEQLR.(PR,F)                                 000190
+                            PRLINK=SEQLR.(PR,F)                                 000191
+                            BUILT=ASSMBL.(TMPLET,TEST,MTLIST.(OUTPUT))          000192
+                            W'R BUILT .E. 0, T'O NEXTK                          000193
+                            LSSCPY.(BUILT,MTLIST.(INPUT))                       000194
+                            ES=PRLINK                                           000195
+                            T'O LINK                                            000196
+                        E'L                                                     000197
+                        TXTPRT.(ASSMBL.(TRANS,TEST,MTLIST.(OUTPUT)),0)          000198
+                        T'O START                                               000199
+LINK                S=SEQRDR.(ES)                                               000200
+                        SEQLR.(S,F)                                             000201
+                        WORD=SEQLR.(S,F)                                        000202
+                        I=HASH.(WORD,7)                                         000203
+                        SCANER=SEQRDR.(KEY(I))                                  000204
+SCAN                ITS=SEQLR.(SCANER,F)                                        000205
+                        W'R F .G. 0, T'O NEXTK                                  000206
+                        W'R WORD .NE. TOP.(ITS), T'O SCAN                       000207
+                        S=SEQRDR.(ITS)                                          000208
+SCANI             ES=SEQLR.(S,F)                                                000209
+                        W'R F .NE.0, T'O SCANI                                  000210
+                        IT=S                                                    000211
+                        T'O TRY                                                 000212
+               R* * * * * * * * * * INSERT NEW KEYWORD LIST                     000213
+NEWLST          POPTOP.(INPUT)                                                  000214
+                NEWBOT.(LSSCPY.(INPUT,LIST.(9)),KEY(HASH.                       000215
+               1(TOP.(INPUT),7)))                                               000216
+                T'O START                                                       000217
+               R* * * * * * * * * * DUMP REVISED SCRIPT                         000218
+ENDPLA          PRINT COMMENT $WHAT IS TO BE THE NUMBER OF THE NEW SCRIPT$      000219
+                READ FORMAT SNUMB,SCRIPT                                        000220
+                LPRINT.(INPUT,SCRIPT)                                           000221
+                NEWTOP.(MEMORY,MTLIST.(OUTPUT))                                 000222
+                NEWTOP.($MEMORY$,OUTPUT)                                        000223
+                T'H DUMP, FOR I=1,1, I .G. 4                                    000224
+DUMP            NEWBOT.(MYTRAN(I),OUTPUT)                                       000225
+                LPRINT.(OUTPUT,SCRIPT)                                          000226
+                MTLIST.(OUTPUT)                                                 000227
+                T'H WRITE, FOR I=0,1, I .G. 128                                 000228
+POPMOR          W'R LISTMT.(KEY(I)) .E. 0, T'O WRITE                            000229
+                LPRINT.(POPTOP.(KEY(I)),SCRIPT)                                 000230
+                T'O POPMOR                                                      000231
+WRITE           CONTINUE                                                        000232
+                LPRINT.(MTLIST.(INPUT),SCRIPT)                                  000233
+                EXIT.                                                           000234
+               R* * * * * * * * * * SCRIPT ERROR EXIT                           000235
+NOMACH(1)       PRINT COMMENT $PLEASE CONTINUE $                                000236
+                T'O START                                                       000237
+NOMACH(2)       PRINT COMMENT $HMMM $                                           000238
+                T'O START                                                       000239
+NOMACH(3)       PRINT COMMENT $GO ON , PLEASE $                                 000240
+                T'O START                                                       000241
+NOMACH(4)       PRINT COMMENT $I SEE $                                          000242
+                T'O START                                                       000243
+                VECTOR VALUES SNUMB= $I3 * $                                    000244
+                E'M                                                             000245

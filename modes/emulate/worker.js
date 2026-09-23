@@ -40,7 +40,7 @@ import { CardReader, CardPunch } from './src/devices/reader.js';
 import { ChronologClock } from './src/devices/chrono.js';
 import { TapeUnit } from './src/devices/tape.js';
 import { DrumChannel, DrumControl } from './src/devices/drum.js';
-import { CommunicationsController, CONSOLE_LINE } from './src/devices/comm.js';
+import { CommunicationsController, CONSOLE_LINE } from './src/devices/comm.js?v=c8122a3facdd';
 import { unpackPacked } from './unpack.js';
 
 /** Instructions a second, matching the bridge's pace. */
@@ -76,6 +76,7 @@ let startedAt = 0;
 let executed = 0;
 let dialed = false;
 let backlog = '';
+let bootReported = false;
 
 function status() {
   const line = comm?.lines?.[CONSOLE_LINE];
@@ -97,6 +98,10 @@ function emitState() {
 function consolePrint(text) {
   backlog = (backlog + text).slice(-BACKLOG);
   post({ type: 'print', text });
+  if (!bootReported && backlog.includes('READY.')) {
+    bootReported = true;
+    post({ type: 'progress', stage: 'boot' });
+  }
   if (/HANGUP/.test(text)) {
     stopped = true;
     post({ type: 'hangup' });
@@ -201,11 +206,12 @@ self.onmessage = async (event) => {
 
   if (message.type === 'boot') {
     try {
+      bootReported = false;
+      backlog = '';
       post({ type: 'progress', stage: 'unpack' });
       mount(message.pack, message.cmd);
       post({ type: 'progress', stage: 'mounted' });
       boot();
-      post({ type: 'progress', stage: 'boot' });
       if (backlog) post({ type: 'print', text: backlog });
       await run();
     } catch (error) {

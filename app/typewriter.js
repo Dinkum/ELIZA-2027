@@ -13,15 +13,15 @@
  *   "A signal bell operates when the printing element carrier moves to within
  *    twelve character positions from the right margin."
  *
- * Carrier return time is not given in the manual; it is modelled as a fixed
- * engage time plus travel proportional to the distance back to the left
- * margin, which is how the Selectric mechanism behaves.
+ * The 1050 manual gives carrier-return time as (1.5 + T) × 67.5 ms, where T
+ * is inches of carrier travel. The paper uses ten character positions per inch.
  */
 
 const CHARS_PER_SECOND = 14.8;
-const MS_PER_CHARACTER = 1000 / CHARS_PER_SECOND;
-const CARRIER_RETURN_MS = 90;
-const CARRIER_RETURN_MS_PER_COLUMN = 2.4;
+const MS_PER_CHARACTER = Math.ceil(1000 / CHARS_PER_SECOND);
+const CHARACTER_WIDTH_INCHES = 0.1;
+const CARRIER_RETURN_CHARACTER_TIMES = 1.5;
+const CHARACTER_TIME_MS = 67.5;
 const BELL_FROM_RIGHT_MARGIN = 12;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,46 +73,53 @@ export class Typewriter {
    */
   print(text, options = {}) {
     return this.#enqueue(async () => {
-      let run = this.#openRun(options);
+      let run = null;
       for (const char of this.#wrap(text, this.column)) {
         if (char === '\n') {
           await this.#carrierReturn();
-          run = this.#openRun(options);
+          run = null;
           continue;
         }
+        if (!run && !this.carrier.nextElementSibling) run = this.#openRun(options);
         this.#strike(char, run, options);
-        await sleep(MS_PER_CHARACTER + jitter(MS_PER_CHARACTER * 0.12));
+        await sleep(MS_PER_CHARACTER + Math.random() * MS_PER_CHARACTER * 0.12);
       }
     });
   }
 
-  /** Print with no delay — used to echo the operator's own keystrokes. */
+  /** Echo operator keys at the 1052's maximum keying speed. */
   echo(text, options = {}) {
     return this.#enqueue(async () => {
-      let run = this.#openRun(options);
+      let run = null;
       for (const char of this.#wrap(text, this.column)) {
         if (char === '\n') {
           await this.#carrierReturn();
-          run = this.#openRun(options);
+          run = null;
         } else {
+          if (!run && !this.carrier.nextElementSibling) run = this.#openRun(options);
           this.#strike(char, run, options);
+          await sleep(MS_PER_CHARACTER);
         }
       }
     });
   }
 
-  /** Back the carrier up one position and lift the character off the paper. */
+  /** Back the carrier up one position, leaving every impression on the paper. */
   rubout() {
     return this.#enqueue(async () => {
-      const struck = this.carrier.previousElementSibling;
+      let struck = this.carrier.previousElementSibling;
+      if (!struck && this.carrier.parentElement?.classList.contains('run')) {
+        struck = this.carrier.parentElement.previousElementSibling;
+        if (struck) this.carrier.parentElement.before(this.carrier);
+      }
       if (!struck) return;
       if (struck.classList.contains('run')) {
-        struck.lastElementChild?.remove();
-        if (!struck.firstElementChild) struck.remove();
+        struck.insertBefore(this.carrier, struck.lastElementChild);
       } else {
-        struck.remove();
+        struck.before(this.carrier);
       }
-      this.column = Math.max(0, this.column - 1);
+      this.column -= 1;
+      await sleep(MS_PER_CHARACTER);
     });
   }
 
@@ -137,51 +144,29 @@ export class Typewriter {
   }
 
   /**
-   * Break text so no word crosses the right margin.
-   * Spacing is left exactly as given: the machine prints what it is sent, and
-   * columns of spaces are how the paper gets laid out.
+   * Return at the right margin, without looking ahead to the next word.
+   * Spaces are struck in their own columns, just like other characters.
    */
   #wrap(text, startColumn) {
-    const chars = [...String(text)];
     const out = [];
     let column = startColumn;
 
-    for (let i = 0; i < chars.length; i += 1) {
-      const char = chars[i];
-
+    for (const char of String(text)) {
       if (char === '\n') {
         out.push('\n');
         column = 0;
         continue;
       }
-      if (char === ' ') {
-        if (column >= this.margin) {
-          out.push('\n');
-          column = 0;
-        } else {
-          out.push(' ');
-          column += 1;
-        }
-        continue;
-      }
-
-      // Start of a word: return the carrier first if it will not fit whole.
-      let end = i;
-      while (end < chars.length && chars[end] !== ' ' && chars[end] !== '\n') end += 1;
-      const width = end - i;
-      if (column > 0 && column + width > this.margin && width <= this.margin) {
+      if (column >= this.margin) {
         out.push('\n');
         column = 0;
       }
-      for (; i < end; i += 1) {
-        if (column >= this.margin) {
-          out.push('\n');
-          column = 0;
-        }
-        out.push(chars[i]);
-        column += 1;
+      out.push(char);
+      column += 1;
+      if (column === this.margin) {
+        out.push('\n');
+        column = 0;
       }
-      i -= 1;
     }
     return out;
   }
@@ -197,8 +182,10 @@ export class Typewriter {
   }
 
   #strike(char, run, { ribbon = 'black' } = {}) {
+    const next = this.carrier.nextElementSibling;
+    const occupied = next?.classList.contains('ch') ? next : null;
     const span = document.createElement('span');
-    span.className = `ch ribbon-${ribbon}`;
+    span.className = `${occupied ? 'overstrike' : 'ch'} ribbon-${ribbon}`;
     if (this.ribbonWear > 0) {
       const density = 1 - this.ribbonWear * (0.04 + Math.random() * 0.13);
       span.style.setProperty('--weight', density.toFixed(3));
@@ -210,7 +197,14 @@ export class Typewriter {
     }
     span.textContent = char;
 
-    if (run) run.appendChild(span);
+    if (occupied) {
+      occupied.appendChild(span);
+      occupied.after(this.carrier);
+      if (this.carrier.parentElement.classList.contains('run') &&
+          !this.carrier.nextElementSibling) {
+        this.carrier.parentElement.after(this.carrier);
+      }
+    } else if (run) run.appendChild(span);
     else this.line.insertBefore(span, this.carrier);
 
     this.column += 1;
@@ -219,9 +213,16 @@ export class Typewriter {
   }
 
   async #carrierReturn() {
-    const travel = CARRIER_RETURN_MS + this.column * CARRIER_RETURN_MS_PER_COLUMN;
-    this.#feed();
+    const travel = (CARRIER_RETURN_CHARACTER_TIMES + this.column * CHARACTER_WIDTH_INCHES) * CHARACTER_TIME_MS;
+    const distance = Math.max(0,
+      this.carrier.getBoundingClientRect().left - this.line.getBoundingClientRect().left);
+    const motion = distance > 0 ? this.carrier.animate?.([
+      { transform: 'translateX(0)' },
+      { transform: `translateX(-${distance}px)` },
+    ], { duration: travel, easing: 'linear', fill: 'forwards' }) : null;
     await sleep(travel);
+    motion?.cancel();
+    this.#feed();
   }
 
   #feed() {

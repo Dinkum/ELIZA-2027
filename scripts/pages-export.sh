@@ -6,10 +6,9 @@
 #
 # The publish set is the small static app: modes 1 (rewrite), 2 (port), 3
 # (emulate) and 4 (extended). Mode 3 is the machine in the browser: a Worker
-# boots CTSS from a packed image (~10 MB) and the page is its 7750 line. The
-# raw DASD containers never go to the client — only the pack and the card
-# deck do — so *.BIN, *.tap, dasd/ and output/ are still excluded, and the
-# pack is the only artifact that ships.
+# boots CTSS from the selected packed image (~10 MB each) and the page is its
+# 7750 line. The raw DASD containers never go to the client — only the two
+# packs and the card deck do — so *.BIN, *.tap, dasd/ and output/ stay out.
 #
 # Encoder (mode 4) is optional. The vendored WebAssembly runtime and pinned
 # model ship when present locally, EXCEPT ort-wasm-simd-threaded.jsep.wasm:
@@ -24,7 +23,10 @@ set -eu
 DEST="${1:-/tmp/eliza-pages-export}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 
-rm -rf "$DEST"
+if [ -e "$DEST" ]; then
+  echo "ERROR: destination already exists: $DEST" >&2
+  exit 1
+fi
 mkdir -p "$DEST/modes" "$DEST/data"
 
 # Root files: the page and the Pages headers. package.json is NOT needed on
@@ -48,11 +50,12 @@ rsync -a \
   --exclude 'vendor/ort/*.jsep.wasm' \
   "$SRC/modes/extended/" "$DEST/modes/extended/"
 
-# Mode 3: the worker, the packed image and the card deck. The raw DASD
-# containers stay home; the pack is the only artifact the page fetches.
+# Mode 3: the worker, both versioned packed images and the card deck. The raw
+# DASD containers stay home.
 rsync -a \
   --include 'worker.js' \
   --include 'ctss-dasd.pack' \
+  --include 'ctss-1966-dasd.pack' \
   --include 'cmd.cbn' \
   --include 'src/***' \
   --include 'unpack.js' \

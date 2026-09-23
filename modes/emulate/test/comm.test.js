@@ -196,6 +196,18 @@ test('a pending line hands over its whole line in one message', () => {
   assert.equal(second[1], END_OF_MEDIUM, 'and there is nothing left to say');
 });
 
+test('a completion-only message ends before the following input record', () => {
+  const { channel, comm, core } = commMachine();
+  enable(comm, channel, core);
+  comm.lines[CONSOLE_LINE].notReturned = 65;
+  const characters = unpack(comm.collect());
+  const lineTag = (CONSOLE_LINE + 4) | VALID_LINE;
+  assert.deepEqual(characters.slice(1, 8), [
+    lineTag, 0o3037, lineTag, 0o3037, lineTag, 0o3003, END_OF_MEDIUM,
+  ]);
+  assert.equal(comm.lines[CONSOLE_LINE].notReturned, 0);
+});
+
 test('a dialup is announced as DIALUP, the model and END_ID', () => {
   const { channel, comm, core } = commMachine();
   enable(comm, channel, core);

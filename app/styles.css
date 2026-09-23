@@ -89,15 +89,17 @@ body {
 .paper-tools {
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
   min-height: 1.3em;
   margin: 0 calc(var(--feed) + var(--margin)) 0.7em;
 }
 
 .live-guide {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 5rem;
+  grid-column: 2;
+  grid-row: 1;
   z-index: 2;
   display: flex;
   align-items: flex-start;
@@ -166,6 +168,7 @@ body {
 /* One character struck onto the paper. Ink and registration variation are
    optional per-strike effects; the base face carries no inferred wear. */
 .ch {
+  position: relative;
   display: inline-block;
   width: var(--column);
   height: var(--row);
@@ -177,7 +180,15 @@ body {
 }
 
 /* Automatic ribbon shift: the machine prints black, the operator red. */
-.ch.ribbon-red { color: var(--ink-red); }
+.ch.ribbon-red, .overstrike.ribbon-red { color: var(--ink-red); }
+
+/* A second impression occupies the same fixed column; earlier ink remains. */
+.overstrike {
+  position: absolute;
+  inset: 0;
+  opacity: var(--weight, 1);
+  transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--tilt, 0));
+}
 
 .run { display: inline-block; position: relative; vertical-align: top; }
 
@@ -218,7 +229,7 @@ body {
 .carrier {
   position: relative;
   display: inline-block;
-  width: var(--column);
+  width: 0;
   height: var(--row);
   vertical-align: top;
 }
@@ -228,7 +239,9 @@ body {
 .carrier::before {
   content: '';
   position: absolute;
-  inset: -0.08em -0.06em;
+  inset: -0.08em auto -0.08em -0.06em;
+  width: calc(var(--column) + 0.12em);
+  box-sizing: border-box;
   border: 1px solid rgba(35, 32, 28, 0.46);
   border-radius: 0.04em;
   box-shadow:
@@ -299,7 +312,7 @@ body {
   cursor: pointer;
 }
 
-.paper-tools .back { position: static; }
+.paper-tools .back { position: static; grid-column: 1; grid-row: 1; }
 
 .back:hover { color: #f0e6d0; border-color: #59513f; }
 
@@ -381,6 +394,12 @@ body {
   letter-spacing: 0.04em;
 }
 
+.row-marker {
+  margin-left: 0.12em;
+  color: var(--chrome-dim);
+  font-size: 0.7em;
+}
+
 .row-line {
   display: block;
   margin-top: 0.2rem;
@@ -401,6 +420,8 @@ body {
   line-height: 1.5;
   color: var(--chrome-dim);
 }
+
+.version-source-note { margin-top: 1.25rem; }
 
 /* The loader: mode 3's own screen while the machine comes up. */
 .loader-line {

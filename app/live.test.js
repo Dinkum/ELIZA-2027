@@ -85,6 +85,7 @@ test('boot reports the download and waits for the worker to finish booting', asy
       if (message.type !== 'boot') return;
       queueMicrotask(() => this.onmessage?.({ data: { type: 'progress', stage: 'unpack' } }));
       queueMicrotask(() => this.onmessage?.({ data: { type: 'progress', stage: 'mounted' } }));
+      queueMicrotask(() => this.onmessage?.({ data: { type: 'print', text: 'READY.\n' } }));
       queueMicrotask(() => this.onmessage?.({ data: { type: 'progress', stage: 'boot' } }));
     }
   };
@@ -101,6 +102,10 @@ test('boot reports the download and waits for the worker to finish booting', asy
     assert.equal(worker !== undefined, true);
     assert.deepEqual(progress.map(({ stage }) => stage), ['fetch', 'unpack', 'mounted', 'boot']);
     assert.deepEqual(progress[0], { type: 'progress', stage: 'fetch', received: 4, total: 4 });
+    const printed = [];
+    line.onPrint = (text) => printed.push(text);
+    line.flushPrint();
+    assert.deepEqual(printed, ['READY.\n']);
   } finally {
     if (originalWorker === undefined) delete globalThis.Worker;
     else globalThis.Worker = originalWorker;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ELIZA 2027</title>
 <meta name="description" content="Software archaeology of Weizenbaum's ELIZA, printed on an IBM 1050.">
-<link rel="stylesheet" href="app/styles.css?v=9b6890466a45">
+<link rel="stylesheet" href="app/styles.css?v=31314af1d2e9">
 </head>
 <body>
   <!-- The desk. Two screens, and no paper yet: what to run is agreed here so
@@ -24,6 +24,7 @@
     <section id="screen-version" class="slip" aria-labelledby="version-title" hidden>
       <h1 id="version-title" class="slip-title">Pick A Version</h1>
       <ul id="version-rows" class="rows"></ul>
+      <p id="version-source-note" class="note version-source-note"><span aria-hidden="true">*</span> The original 1966 MAD listing has not been recovered. This program reconstructs the behavior described in the 1966 paper, which also publishes the DOCTOR script.</p>
     </section>
 
     <section id="screen-loader" class="slip" aria-labelledby="loader-title" hidden>
@@ -52,8 +53,12 @@
       <div class="feed feed-right" aria-hidden="true"></div>
       <div id="paper-tools" class="paper-tools">
         <aside id="live-guide" class="live-guide" aria-label="CTSS instructions" hidden>
-          <p>AT THE CTSS <code>R</code> PROMPT, TYPE <code>R ELIZA</code> TO START THE PROGRAM. THEN ENTER <code>100</code> FOR THE RECOVERED 1965 DOCTOR SCRIPT.</p>
+          <p>AT THE CTSS <code>R</code> PROMPT, TYPE <code>R ELIZA</code> TO START THE PROGRAM. THEN ENTER <code>100</code> FOR THE DOCTOR SCRIPT. KEEP INPUT LINES WITHIN 72 COLUMNS; PRESS RETURN ON A BLANK LINE TO SEND.</p>
           <button id="live-guide-dismiss" class="live-guide-dismiss" type="button">DISMISS</button>
+        </aside>
+        <aside id="port-guide" class="live-guide" aria-label="Input instructions" hidden>
+          <p>PRESS RETURN TWICE TO SEND.</p>
+          <button id="port-guide-dismiss" class="live-guide-dismiss" type="button">DISMISS</button>
         </aside>
       </div>
       <div id="sheet" class="sheet" role="log" aria-live="polite" aria-label="printed paper"></div>
@@ -68,6 +73,6 @@
 
   <button id="sound" class="sound" type="button" aria-pressed="false" hidden>BELL OFF</button>
 
-  <script type="module" data-cfasync="false" src="app/main.js?v=5fee1c43bae9"></script>
+  <script type="module" data-cfasync="false" src="app/main.js?v=7f3b98358cf4"></script>
 </body>
 </html>

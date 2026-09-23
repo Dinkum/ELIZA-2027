@@ -17,11 +17,12 @@ export class LiveLine {
   /**
    * @param {string|URL} [workerUrl]  where the machine's worker lives
    */
-  constructor(workerUrl = new URL('../modes/emulate/worker.js?v=c05a9ae8e7e1', import.meta.url)) {
+  constructor(workerUrl = new URL('../modes/emulate/worker.js?v=06340fd49d2d', import.meta.url)) {
     this.workerUrl = workerUrl;
     this.state = 'closed';
     this.worker = null;
     this.onPrint = null;
+    this.pendingPrint = [];
     this.onState = null;
     this.onProgress = null;
     this.onError = null;
@@ -96,7 +97,8 @@ export class LiveLine {
           done(true);
         } else if (message.type === 'print') {
           done(true);
-          this.onPrint?.(message.text);
+          if (this.onPrint) this.onPrint(message.text);
+          else this.pendingPrint.push(message.text);
         } else if (message.type === 'state') {
           this.state = message.state;
           done(true);
@@ -178,8 +180,17 @@ export class LiveLine {
     return true;
   }
 
+  /** Deliver machine text received during boot before the paper had a listener. */
+  flushPrint() {
+    if (!this.onPrint || this.pendingPrint.length === 0) return;
+    const text = this.pendingPrint.join('');
+    this.pendingPrint.length = 0;
+    this.onPrint(text);
+  }
+
   close() {
     this.state = 'closed';
+    this.pendingPrint.length = 0;
     this.worker?.postMessage({ type: 'stop' });
     this.worker?.terminate();
     this.worker = null;
