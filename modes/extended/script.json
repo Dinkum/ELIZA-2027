@@ -2,7 +2,7 @@
   "meta": {
     "name": "ELIZA EXTENDED",
     "lineage": "1966 DOCTOR (Weizenbaum, CACM). Extension of the 1966 design, not a reconstruction.",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "note": "Keyed on literal words and tags. Every capture is a matched text span, never an inferred meaning. The semantic index may only suggest a family to try; it never fills a slot."
   },
 

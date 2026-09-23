@@ -67,7 +67,7 @@ export class Typewriter {
    * Print text at machine speed, wrapping at the right margin.
    * @param {string} text
    * @param {object} [options]
-   * @param {'black'|'red'} [options.ribbon]  automatic ribbon shift colour
+   * @param {'black'|'red'} [options.ribbon]  explicit ribbon colour
    * @param {string} [options.field]  tag the run of characters as a click target
    * @param {string[]} [options.classes]
    */

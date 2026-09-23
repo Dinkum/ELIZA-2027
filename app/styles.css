@@ -179,7 +179,7 @@ body {
   transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--tilt, 0));
 }
 
-/* Automatic ribbon shift: the machine prints black, the operator red. */
+/* Available if a caller explicitly requests the red ribbon setting. */
 .ch.ribbon-red, .overstrike.ribbon-red { color: var(--ink-red); }
 
 /* A second impression occupies the same fixed column; earlier ink remains. */

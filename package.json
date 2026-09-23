@@ -1,6 +1,6 @@
 {
   "name": "eliza-2027",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "description": "Software archaeology of Weizenbaum's ELIZA, printed on an IBM 1050.",
   "type": "module",

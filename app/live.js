@@ -8,7 +8,7 @@
  * used to carry.
  *
  * The paper is not a terminal emulator: it prints the machine's characters in
- * black and the operator's in red, exactly as modes 1, 2 and 4 do, and it sends
+ * black, including the operator's, exactly as modes 1, 2 and 4 do, and it sends
  * a line only when the operator's carrier returns.
  */
 

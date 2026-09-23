@@ -1,8 +1,8 @@
 /**
  * ELIZA 2027 — the sheet of paper in the 1052, and the desk it sits on.
  *
- * The paper is only ever the conversation: the machine prints in black, the
- * operator's keystrokes are echoed in red, and nothing else is struck onto it.
+ * The paper is only ever the conversation: machine and operator characters
+ * print in black, and nothing else is struck onto it.
  * What to run is agreed before the sheet is handed the line, on two short
  * screens of desk chrome — one for the mode, and, where the mode reads an
  * archive tape, one for the version.
@@ -28,7 +28,7 @@ import { EncoderClient, familyVectors, vectorsAreCompatible } from '../modes/ext
 import { createSemantics, SemanticIndex } from '../modes/extended/semantics.js';
 
 /** Extended ships its own richer script rather than reading an archive tape. */
-const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=08935aeb0df9', import.meta.url);
+const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=6e7b4c0826da', import.meta.url);
 
 /**
  * The family example vectors, emitted by `npm run vendor` beside the model.
@@ -37,7 +37,7 @@ const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=08935aeb0df
  * worker instead. Either way the vectors must come from the model the worker
  * actually loaded, which is checked below before they are used.
  */
-const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=a799fd1dd528', import.meta.url);
+const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=74a5fa26d95e', import.meta.url);
 
 /**
  * The two archive tapes, by version key.
@@ -528,9 +528,8 @@ async function converseLive(line, mine) {
   });
 
   const login = logInToCtss(output, async (text) => {
-    // This is the operator's side of the exchange, so it uses the red ribbon
-    // and the 1052's keying speed even though no person has to type it.
-    await printer.print(text, { ribbon: 'red' });
+    // The virtual operator types at the 1052's keying speed.
+    await printer.print(text);
     await printer.newline();
     return line.send(text);
   }).then((ok) => (ok ? 'logged-in' : 'hangup'));
@@ -790,7 +789,7 @@ function apply(key) {
     // The recovered CTSS instructions cap each input line at 72 columns.
     if (waiting.terse && waiting.text.length >= 72) return;
     waiting.text += key;
-    printer.echo(key.toUpperCase(), { ribbon: 'red' });
+    printer.echo(key.toUpperCase());
   }
 }
 
