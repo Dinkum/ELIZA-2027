@@ -47,9 +47,15 @@ html, body {
   margin: 0;
 }
 
+/* The canvas beyond the body — under a mobile browser's translucent toolbar,
+   or in an overscroll — is the desk's edge colour. Left to the body, the
+   gradient would tile there and show a lighter band at the bottom. */
+html { background: var(--desk-edge); }
+
 body {
   background:
-    radial-gradient(ellipse 120% 80% at 50% 0%, #2c2823 0%, var(--desk) 45%, var(--desk-edge) 100%);
+    radial-gradient(ellipse 120% 80% at 50% 0%, #2c2823 0%, var(--desk) 45%, var(--desk-edge) 100%)
+    no-repeat;
   display: flex;
   justify-content: center;
 }
@@ -326,7 +332,11 @@ body {
   --chrome-dim: rgba(236, 231, 221, 0.55);
   --chrome-faint: rgba(236, 231, 221, 0.32);
 
+  /* The visible viewport, not the largest one: 100vh on a phone is taller
+     than the screen while the toolbar shows, and the footnote lands under it. */
   min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -336,7 +346,7 @@ body {
 
 /* The wordmark, centred at the top of the screen. */
 .intro-head {
-  padding: 2.75rem 1.5rem 0;
+  padding: calc(2.75rem + env(safe-area-inset-top, 0px)) 1.5rem 0;
   text-align: center;
 }
 
@@ -474,7 +484,7 @@ body {
 
 /* The footnote: a quiet link, not a call to action. */
 .intro-foot {
-  padding: 0 1.5rem 2rem;
+  padding: 1.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
   text-align: center;
 }
 

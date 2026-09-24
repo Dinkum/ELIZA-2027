@@ -18,14 +18,36 @@ import { CtssOutput, logInToCtss } from './ctss-login.js';
 import {
   MODES, VERSIONS, LINE_DOWN, needsVersion, previousScreen, liveLineAvailable,
 } from './intro.js?v=6a8bbea53bbe';
-import { Eliza } from '../modes/rewrite/eliza.js';
-import { ElizaPort, SlipFault } from '../modes/port/eliza.js?v=1e3713080283';
-import { ElizaPort1966 } from '../modes/port/eliza-1966.js?v=2007d80b9177';
-import { SCRIPT_1965B } from '../data/scripts/eliza-1965b-tape100.js';
-import { SCRIPT_1966 } from '../data/scripts/eliza-1966-cacm.js';
-import { ExtendedEliza } from '../modes/extended/engine.js?v=21b8b65de185';
-import { EncoderClient, familyVectors, vectorsAreCompatible } from '../modes/extended/encoder.js?v=1698b728b0a6';
-import { createSemantics, SemanticIndex } from '../modes/extended/semantics.js';
+
+/**
+ * The engines and their tapes, loaded on first use.
+ *
+ * The desk needs none of them to draw, so none of them is on the page's first
+ * import graph: on a slow line the modes are on screen after one module round
+ * trip rather than after every engine's. Each loader is called once the desk is
+ * up (see `prefetchEngines`), so a choice made a moment later finds its engine
+ * already in the module map.
+ */
+const ENGINES = {
+  rewrite: () => import('../modes/rewrite/eliza.js'),
+  port: () => import('../modes/port/eliza.js?v=1e3713080283'),
+  port1966: () => import('../modes/port/eliza-1966.js?v=2007d80b9177'),
+  extended: () => import('../modes/extended/engine.js?v=21b8b65de185'),
+  encoder: () => import('../modes/extended/encoder.js?v=1698b728b0a6'),
+  semantics: () => import('../modes/extended/semantics.js'),
+};
+
+const TAPE_MODULES = {
+  '1965b': () => import('../data/scripts/eliza-1965b-tape100.js'),
+  '1966': () => import('../data/scripts/eliza-1966-cacm.js'),
+};
+
+/** Warm the module map once the desk is drawn. Failures surface on real use. */
+function prefetchEngines() {
+  for (const load of [...Object.values(ENGINES), ...Object.values(TAPE_MODULES)]) {
+    load().catch(() => {});
+  }
+}
 
 /** Extended ships its own richer script rather than reading an archive tape. */
 const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=6e7b4c0826da', import.meta.url);
@@ -46,8 +68,8 @@ const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.
  * and the dialect it is read in belong to this side, not to the desk.
  */
 const TAPES = {
-  '1965b': { script: SCRIPT_1965B, dialect: '1965b' },
-  '1966': { script: SCRIPT_1966, dialect: '1966' },
+  '1965b': { script: async () => (await TAPE_MODULES['1965b']()).SCRIPT_1965B, dialect: '1965b' },
+  '1966': { script: async () => (await TAPE_MODULES['1966']()).SCRIPT_1966, dialect: '1966' },
 };
 
 /** Each machine image has its own compiled ELIZA and script 100. */
@@ -198,7 +220,9 @@ function showPaper() {
  */
 function askRows(name, options) {
   const list = lists[name];
-  const rows = [...list.querySelectorAll('button.row:not(:disabled)')];
+  // Read at use: a row can be disabled while the screen is up (mode 3, once
+  // the probe for its images answers).
+  const rows = () => [...list.querySelectorAll('button.row:not(:disabled)')];
 
   return new Promise((resolve) => {
     const take = (row) => {
@@ -217,9 +241,10 @@ function askRows(name, options) {
       const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
       if (step === 0) return;
       event.preventDefault();
-      const at = rows.indexOf(document.activeElement);
-      const to = Math.min(rows.length - 1, Math.max(0, (at < 0 ? 0 : at + step)));
-      rows[to]?.focus();
+      const enabled = rows();
+      const at = enabled.indexOf(document.activeElement);
+      const to = Math.min(enabled.length - 1, Math.max(0, (at < 0 ? 0 : at + step)));
+      enabled[to]?.focus();
     };
 
     list.addEventListener('click', onClick);
@@ -232,7 +257,7 @@ function askRows(name, options) {
       resolve(null);
     };
 
-    rows[0]?.focus();
+    rows()[0]?.focus();
   });
 }
 
@@ -276,16 +301,21 @@ function lineDown() {
  * mode had one, and to the modes otherwise.
  */
 async function main() {
-  const availability = Object.fromEntries(await Promise.all(
+  // The desk is drawn before anything is fetched. Mode 3 is offered while its
+  // images are probed, and dimmed if the probe comes back empty; a pick made
+  // before then waits for the answer on the version screen.
+  renderRows('modes', MODES);
+  const probe = Promise.all(
     Object.entries(MACHINE_PACKS).map(async ([key, url]) => [key, await liveLineAvailable(fetch, url)]),
-  ));
-  const lineUp = Object.values(availability).some(Boolean);
-  renderRows('modes', MODES, { unavailable: lineUp ? [] : ['live'] });
-
-  if (!lineUp) {
+  ).then(Object.fromEntries);
+  probe.then((availability) => {
+    if (Object.values(availability).some(Boolean)) return;
+    const live = lists.modes.querySelector('button.row[data-key="live"]');
+    if (live) live.disabled = true;
     note.textContent = LINE_DOWN;
     note.hidden = false;
-  }
+  });
+  prefetchEngines();
 
   let screen = 'modes';
   let mode = null;
@@ -301,6 +331,11 @@ async function main() {
     }
 
     if (screen === 'version') {
+      const availability = mode.kind === 'live' ? await probe : {};
+      if (mode.kind === 'live' && !Object.values(availability).some(Boolean)) {
+        screen = 'modes';
+        continue;
+      }
       renderRows('version', VERSIONS, {
         unavailable: mode.kind === 'live'
           ? VERSIONS.filter((choice) => !availability[choice.key]).map((choice) => choice.key)
@@ -483,7 +518,7 @@ async function converseScript(mode, version, mine) {
       // need the encoder for this turn, so every session is awaited alike.
       await printer.print(await session.respond(text));
     } catch (error) {
-      if (!(error instanceof SlipFault)) throw error;
+      if (!session.isFault?.(error)) throw error;
       await printer.print(`SLIP FAULT . ${error.message}`);
       await printer.newline();
       await printer.print(session.faultText ?? 'THE PROGRAM STOPPED . SEE REFERENCES .');
@@ -575,12 +610,15 @@ async function open(mode, version) {
   if (mode.kind === 'own') return openExtended();
 
   const tape = TAPES[version.key];
+  const script = await tape.script();
 
   if (mode.key === 'port') {
+    const [{ ElizaPort, SlipFault }, { ElizaPort1966 }] = await Promise.all([ENGINES.port(), ENGINES.port1966()]);
     const eliza = tape.dialect === '1966'
-      ? new ElizaPort1966(tape.script)
-      : new ElizaPort(tape.script);
+      ? new ElizaPort1966(script)
+      : new ElizaPort(script);
     return {
+      isFault: (error) => error instanceof SlipFault,
       greeting: eliza.greeting,
       respond: (text) => eliza.respond(text),
       prompt: 'INPUT',
@@ -591,7 +629,8 @@ async function open(mode, version) {
     };
   }
 
-  const eliza = new Eliza(tape.script, { dialect: tape.dialect });
+  const { Eliza } = await ENGINES.rewrite();
+  const eliza = new Eliza(script, { dialect: tape.dialect });
   return {
     greeting: eliza.greeting,
     respond: (text) => eliza.respond(text),
@@ -617,7 +656,9 @@ async function open(mode, version) {
  * embedder that will embed the queries, which is what keeps them comparable.
  */
 async function openExtended() {
-  const response = await fetch(EXTENDED_SCRIPT_URL);
+  const [{ ExtendedEliza }, { createSemantics }, response] = await Promise.all([
+    ENGINES.extended(), ENGINES.semantics(), fetch(EXTENDED_SCRIPT_URL),
+  ]);
   const scriptText = await response.text();
   const script = JSON.parse(scriptText);
   const scriptSha256 = await sha256Text(scriptText);
@@ -683,8 +724,11 @@ async function warmEncoder(script, eliza, session, scriptSha256) {
     return;
   }
 
-  const client = new EncoderClient();
   try {
+    const [{ EncoderClient, familyVectors, vectorsAreCompatible }, { SemanticIndex }] = await Promise.all([
+      ENGINES.encoder(), ENGINES.semantics(),
+    ]);
+    const client = new EncoderClient();
     if (!(await client.load())) {
       setEncoderState(session, 'unavailable', client.error);
       return;
@@ -706,7 +750,7 @@ async function warmEncoder(script, eliza, session, scriptSha256) {
     // came from this exact model at this exact revision, because a vector is
     // meaningless outside the space that produced it and a wrong-space score
     // still looks like a score.
-    const vectors = (await vendoredVectors(client, scriptSha256))
+    const vectors = (await vendoredVectors(client, scriptSha256, vectorsAreCompatible))
       ?? (await familyVectors(script, (texts) => client.embedMany(texts)));
     const index = new SemanticIndex(script, { vectors });
     session.modelSpace = {
@@ -729,7 +773,7 @@ async function warmEncoder(script, eliza, session, scriptSha256) {
  * The vendored family vectors, or null if they are missing or were built from a
  * different model. Null is not an error: the caller computes them instead.
  */
-async function vendoredVectors(client, scriptSha256) {
+async function vendoredVectors(client, scriptSha256, vectorsAreCompatible) {
   try {
     const response = await fetch(EXTENDED_VECTORS_URL);
     if (!response.ok) return null;
