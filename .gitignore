@@ -4,6 +4,8 @@
 # Editors
 .vscode/
 .idea/
+# Local agent instructions
+AGENTS.md
 *.swp
 *~
 *.bak
