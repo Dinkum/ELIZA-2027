@@ -300,14 +300,21 @@ function lineDown() {
  * BACK from a paper session unwinds one screen: to the version screen where the
  * mode had one, and to the modes otherwise.
  */
+function pageLoaded() {
+  if (document.readyState === 'complete') return Promise.resolve();
+  return new Promise((resolve) => window.addEventListener('load', resolve, { once: true }));
+}
+
 async function main() {
   // The desk is drawn before anything is fetched. Mode 3 is offered while its
   // images are probed, and dimmed if the probe comes back empty; a pick made
   // before then waits for the answer on the version screen.
   renderRows('modes', MODES);
-  const probe = Promise.all(
+  // The probe opens both ~10 MB images; it waits for the page's own load so it
+  // does not compete with the fonts and modules the desk needs first.
+  const probe = pageLoaded().then(() => Promise.all(
     Object.entries(MACHINE_PACKS).map(async ([key, url]) => [key, await liveLineAvailable(fetch, url)]),
-  ).then(Object.fromEntries);
+  )).then(Object.fromEntries);
   probe.then((availability) => {
     if (Object.values(availability).some(Boolean)) return;
     const live = lists.modes.querySelector('button.row[data-key="live"]');
@@ -815,9 +822,13 @@ keyboard.addEventListener('keydown', (event) => {
   press(event.key);
 });
 
-/** The interlocked keyboard accepts one key only when the 1052 is ready. */
+/**
+ * Keys are taken whenever a read is outstanding. A key struck while the element
+ * is still printing the last one waits its turn in the printer's queue instead
+ * of being lost, so fast typing prints every letter, at the 1052's own speed.
+ */
 function press(key) {
-  if (!waiting || printer.busy) return;
+  if (!waiting) return;
   apply(key);
 }
 
