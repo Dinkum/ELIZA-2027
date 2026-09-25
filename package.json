@@ -9,6 +9,7 @@
     "serve": "node modes/emulate/serve.mjs",
     "serve:static": "python3 -m http.server 8027 --bind 127.0.0.1",
     "vendor": "node modes/extended/vendor/build.mjs",
+    "build:pages": "rm -rf dist && npm run vendor && sh scripts/pages-export.sh dist",
     "bench": "node modes/emulate/bench/throughput.mjs"
   },
   "dependencies": {

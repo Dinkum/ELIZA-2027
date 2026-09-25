@@ -15,11 +15,16 @@
 # WebGPU (jsep) runtime from an older `npm run vendor` is left out, since
 # nothing loads it.
 #
-# Pages Functions (functions/) are not copied: wrangler reads them from the
-# directory it is run in. Deploy from the repo root:
+# Pages Functions (functions/) are not copied: Pages reads them from the repo
+# root. With Git integration, the Pages project builds with
 #
-#   scripts/pages-export.sh /tmp/eliza-pages-export
-#   npx wrangler pages deploy /tmp/eliza-pages-export --project-name <name>
+#   build command     npm run build:pages   (vendor, then stage into dist/)
+#   output directory  dist
+#
+# A local deploy does the same by hand, from the repo root:
+#
+#   npm run build:pages
+#   npx wrangler pages deploy dist --project-name <name>
 #
 # No bundler, no CDN, no new dependency. No deploy happens here.
 set -eu
@@ -31,59 +36,57 @@ if [ -e "$DEST" ]; then
   echo "ERROR: destination already exists: $DEST" >&2
   exit 1
 fi
-mkdir -p "$DEST/modes" "$DEST/data"
+mkdir -p "$DEST"
 
 # Root files: the page, the Pages headers and routes, and robots.txt.
 # package.json is NOT needed on Pages (no build step), version.json is unread
 # by the page.
 cp "$SRC/index.html" "$SRC/_headers" "$SRC/_routes.json" "$SRC/robots.txt" "$DEST/"
 
+# Copy paths under $SRC into $DEST, keeping their layout. tar rather than
+# rsync: the Cloudflare Pages build image does not list rsync, and every Linux
+# image has tar. Extra arguments before the paths are tar --exclude options.
+copy() {
+  tar -C "$SRC" -cf - "$@" | tar -C "$DEST" -xf -
+}
+
 # Intro + paper UI. Test files stay home.
-rsync -a --exclude '*.test.js' "$SRC/app/" "$DEST/app/"
+copy --exclude='*.test.js' app
 
 # Modes 1 and 2, minus their node test dirs.
-rsync -a --exclude 'test/' "$SRC/modes/rewrite/" "$DEST/modes/rewrite/"
-rsync -a --exclude 'test/' "$SRC/modes/port/" "$DEST/modes/port/"
+copy --exclude='modes/rewrite/test' --exclude='modes/port/test' \
+  modes/rewrite modes/port
 
 # Mode 4: engine + script + the complete local WASM encoder. A leftover jsep
 # (WebGPU) runtime never ships. Everything else under vendor/
 # rides along when present locally (library, manifest, family vectors,
 # pinned model and WASM-device runtime), while the page still falls back to
 # its bundled lexical index wherever a piece is missing.
-rsync -a \
-  --exclude 'test/' \
-  --exclude 'vendor/ort/*.jsep.*' \
-  "$SRC/modes/extended/" "$DEST/modes/extended/"
+copy \
+  --exclude='modes/extended/test' \
+  --exclude='modes/extended/vendor/ort/*.jsep.*' \
+  modes/extended
 
 # Mode 3: the worker, both versioned packed images and the card deck. The raw
 # DASD containers stay home.
-rsync -a \
-  --include 'worker.js' \
-  --include 'ctss-dasd.pack' \
-  --include 'ctss-1966-dasd.pack' \
-  --include 'cmd.cbn' \
-  --include 'src/***' \
-  --include 'unpack.js' \
-  --include 'bridge.mjs' \
-  --exclude '*' \
-  "$SRC/modes/emulate/" "$DEST/modes/emulate/"
+copy \
+  modes/emulate/worker.js \
+  modes/emulate/ctss-dasd.pack \
+  modes/emulate/ctss-1966-dasd.pack \
+  modes/emulate/cmd.cbn \
+  modes/emulate/src \
+  modes/emulate/unpack.js \
+  modes/emulate/bridge.mjs
 
 # Archive tapes the page reads.
-rsync -a "$SRC/data/scripts/" "$DEST/data/scripts/"
-rsync -a "$SRC/shared/" "$DEST/shared/"
+copy data/scripts shared
 
 # Font faces plus their stylesheet. Tooling (.venv), caches
 # (__pycache__), the build script and dev artefacts (demo, specimens,
 # strike lab, lockfiles) stay home.
-rsync -a \
-  --include '*/' \
-  --include '*.woff2' \
-  --include '*.ttf' \
-  --include 'font.css' \
-  --include 'manifest.json' \
-  --include 'SOURCES.md' \
-  --exclude '*' \
-  "$SRC/font/" "$DEST/font/"
+copy $(cd "$SRC" && find font -maxdepth 1 -type f \( \
+  -name '*.woff2' -o -name '*.ttf' -o -name 'font.css' \
+  -o -name 'manifest.json' -o -name 'SOURCES.md' \) | sort)
 
 echo "Staged $DEST"
 du -sh "$DEST"
