@@ -15,13 +15,13 @@
  * code. Only the model weights come over the wire, once, and the browser then
  * caches them.
  *
- * TWO RUNTIMES, ONE INTERFACE
+ * ONE RUNTIME
  *
- *   device 'wasm'    ort-wasm-simd-threaded.wasm       12.9 MB  everywhere
- *   device 'webgpu'  ort-wasm-simd-threaded.jsep.wasm  26.1 MB  hardware
+ *   device 'wasm'    ort-wasm-simd-threaded.asyncify.wasm  22.5 MiB  everywhere
  *
- * WebGPU is the faster path and the experimental one. WASM has to work
- * regardless, because it is the floor the feature is allowed to fall to.
+ * Only the WASM runtime is vendored. The WebGPU build is not: the model is
+ * small enough that the CPU answers within a keystroke, and GPU start-up would
+ * only delay the first reply. A 'webgpu' device would 404 on its runtime.
  */
 
 import { pipeline, env } from './vendor/transformers.web.js?v=070ec5ae15d0';

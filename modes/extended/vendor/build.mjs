@@ -88,13 +88,16 @@ const MODEL_FILES = ['config.json', 'tokenizer.json', 'tokenizer_config.json', '
 
 /**
  * The wasm the browser actually asks for, observed rather than guessed: the
- * asyncify pair for the CPU device. The jsep pair is the WebGPU build — the
- * design says "use WebGPU where suitable", so it is vendored too, otherwise
- * that device would 404 the moment the machine went offline.
+ * asyncify pair for the CPU device, the only device the page requests. The
+ * jsep pair (the WebGPU build, 24.9 MiB) is not vendored: nothing loads it, and
+ * for a six-layer encoder embedding one line at a time the GPU's startup cost
+ * outweighs anything it saves. Leftovers from older runs are removed below.
  */
 const ORT_FILES = [
   'ort-wasm-simd-threaded.asyncify.mjs',
   'ort-wasm-simd-threaded.asyncify.wasm',
+];
+const ORT_RETIRED = [
   'ort-wasm-simd-threaded.jsep.mjs',
   'ort-wasm-simd-threaded.jsep.wasm',
 ];
@@ -200,6 +203,9 @@ for (const name of ORT_FILES) {
 }
 for (const [source, outputName] of ORT_ALIASES) {
   copyFileSync(join(ORT_SRC, source), join(ORT_DIR, outputName));
+}
+for (const name of ORT_RETIRED) {
+  rmSync(join(ORT_DIR, name), { force: true });
 }
 const ortVersion = JSON.parse(readFileSync(join(ROOT, 'node_modules', 'onnxruntime-web', 'package.json'), 'utf8')).version;
 console.log(`copied onnxruntime-web@${ortVersion} runtime -> vendor/ort/ (${ORT_FILES.length + ORT_ALIASES.length} files)`);

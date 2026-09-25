@@ -45,8 +45,6 @@
     "files": {
       "ort-wasm-simd-threaded.asyncify.mjs": "5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9",
       "ort-wasm-simd-threaded.asyncify.wasm": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786",
-      "ort-wasm-simd-threaded.jsep.mjs": "522b3769929f5684c83a12cf1e06eedf073b65d161728b4f3757c75d62b14384",
-      "ort-wasm-simd-threaded.jsep.wasm": "ae61141f8fbf0a4e43fd7b4f4d40a1a115627f6facc4f33ddf84074a655e33ea",
       "ort-wasm-simd-threaded.asyncify.js": "5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9"
     }
   },

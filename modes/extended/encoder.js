@@ -81,7 +81,7 @@ export function vectorsAreCompatible(file, client, scriptSha256) {
  * false and every embed resolving to null, which the engine already handles.
  */
 export class EncoderClient {
-  constructor({ workerUrl = new URL('./encoder.worker.js?v=0942cf034514', import.meta.url), device = 'wasm' } = {}) {
+  constructor({ workerUrl = new URL('./encoder.worker.js?v=cc435b77aaff', import.meta.url), device = 'wasm' } = {}) {
     this.workerUrl = workerUrl;
     this.device = device;
     this.worker = null;

@@ -33,7 +33,7 @@ const ENGINES = {
   port: () => import('../modes/port/eliza.js?v=1e3713080283'),
   port1966: () => import('../modes/port/eliza-1966.js?v=2007d80b9177'),
   extended: () => import('../modes/extended/engine.js?v=21b8b65de185'),
-  encoder: () => import('../modes/extended/encoder.js?v=1698b728b0a6'),
+  encoder: () => import('../modes/extended/encoder.js?v=16d8ecd1bf83'),
   semantics: () => import('../modes/extended/semantics.js'),
 };
 
