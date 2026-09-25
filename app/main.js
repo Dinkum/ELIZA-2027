@@ -50,7 +50,7 @@ function prefetchEngines() {
 }
 
 /** Extended ships its own richer script rather than reading an archive tape. */
-const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=6e7b4c0826da', import.meta.url);
+const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=d6c140024c22', import.meta.url);
 
 /**
  * The family example vectors, emitted by `npm run vendor` beside the model.
