@@ -29,9 +29,9 @@ if [ -e "$DEST" ]; then
 fi
 mkdir -p "$DEST/modes" "$DEST/data"
 
-# Root files: the page and the Pages headers. package.json is NOT needed on
+# Root files: the page, the Pages headers and robots.txt. package.json is NOT needed on
 # Pages (no build step), version.json is unread by the page.
-cp "$SRC/index.html" "$SRC/_headers" "$DEST/"
+cp "$SRC/index.html" "$SRC/_headers" "$SRC/robots.txt" "$DEST/"
 
 # Intro + paper UI. Test files stay home.
 rsync -a --exclude '*.test.js' "$SRC/app/" "$DEST/app/"
