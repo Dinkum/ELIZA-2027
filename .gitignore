@@ -52,6 +52,9 @@ venv/
 # is committed — including the nested ignores there, which are redundant.
 /references/
 
+# Archive deliveries, correspondence, and source derivatives stay local.
+/sources/
+
 # Leftovers from driving s709 by hand during differential debugging: its print
 # log, its console's stderr, and the shell loop used to feed it start commands.
 /445

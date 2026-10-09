@@ -13,6 +13,7 @@
 
 import { Typewriter } from './typewriter.js?v=56ba75bcf382';
 import { Sound } from './sound.js';
+import { acceptCharacter } from './input.js';
 import { LiveLine } from './live.js?v=7f3799639c78';
 import { CtssOutput, logInToCtss } from './ctss-login.js';
 import {
@@ -50,7 +51,7 @@ function prefetchEngines() {
 }
 
 /** Extended ships its own richer script rather than reading an archive tape. */
-const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=6e7b4c0826da', import.meta.url);
+const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=d6c140024c22', import.meta.url);
 
 /**
  * The family example vectors, emitted by `npm run vendor` beside the model.
@@ -59,7 +60,7 @@ const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=6e7b4c0826d
  * worker instead. Either way the vectors must come from the model the worker
  * actually loaded, which is checked below before they are used.
  */
-const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=74a5fa26d95e', import.meta.url);
+const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=6811e8a58ee8', import.meta.url);
 
 /**
  * The two archive tapes, by version key.
@@ -509,7 +510,7 @@ async function converseScript(mode, version, mine) {
       await printer.newline();
     }
 
-    const text = await readText(session.blankLineEnds);
+    const text = await readText(session.blankLineEnds, false, session.questionDeletes);
     if (mine !== generation || text === null) return 'back';
     if (text.trim().length === 0) continue;
 
@@ -623,6 +624,7 @@ async function open(mode, version) {
       respond: (text) => eliza.respond(text),
       prompt: 'INPUT',
       blankLineEnds: true,
+      questionDeletes: true,
       faultText: tape.dialect === '1965b'
         ? 'THE 1965B CODE HAS NO PATH THROUGH THIS . SEE REFERENCES .'
         : 'THE RECONSTRUCTED 1966 PROGRAM STOPPED . SEE REFERENCES .',
@@ -638,6 +640,7 @@ async function open(mode, version) {
     // carries the INPUT prompt.
     prompt: tape.dialect === '1965b' ? 'INPUT' : null,
     blankLineEnds: false,
+    questionDeletes: true,
   };
 }
 
@@ -830,9 +833,7 @@ function apply(key) {
       printer.rubout();
     }
   } else if (key.length === 1) {
-    // The recovered CTSS instructions cap each input line at 72 columns.
-    if (waiting.terse && waiting.text.length >= 72) return;
-    waiting.text += key;
+    if (!acceptCharacter(waiting, key)) return;
     printer.echo(key.toUpperCase());
   }
 }
@@ -846,9 +847,9 @@ function apply(key) {
  *
  * Resolves null if the session is given up while the read is outstanding.
  */
-function readText(blankLineEnds, terse = false) {
+function readText(blankLineEnds, terse = false, questionDeletes = false) {
   return new Promise((resolve) => {
-    waiting = { kind: 'line', text: '', lines: [], blankLineEnds, terse, resolve };
+    waiting = { kind: 'line', text: '', lines: [], blankLineEnds, terse, questionDeletes, resolve };
   });
 }
 

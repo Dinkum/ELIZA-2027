@@ -88,3 +88,22 @@ test('SLIP HASH matches the documented values', () => {
   // SLIP packed six characters per cell, so only the last chunk is hashed.
   assert.equal(lastChunkAsBcd('INVENTED'), 0o252460606060n);
 });
+
+test('1966 retains the first keyword at a tied rank, including rank zero', () => {
+  // CACM p. 39: only a higher rank promotes; otherwise append at the bottom.
+  for (const [input, expected] of [
+    ['I know you.', 'PERHAPS IN YOUR FANTASY WE KNOW EACH OTHER'],
+    ['My father is afraid of everybody.', 'TELL ME MORE ABOUT YOUR FAMILY'],
+    ['Everybody knows my father.', 'REALLY , EVERYBODY'],
+  ]) {
+    assert.equal(new Eliza(SCRIPT_1966, { dialect: '1966' }).respond(input), expected);
+  }
+});
+
+test('1966 a later tied keyword does not suppress MY memory', () => {
+  // These three answers are also observed on the compiled 1966 CTSS disk.
+  const eliza = new Eliza(SCRIPT_1966, { dialect: '1966' });
+  assert.equal(eliza.respond('My father is afraid of everybody.'), 'TELL ME MORE ABOUT YOUR FAMILY');
+  assert.equal(eliza.respond('cobalt.'), 'I AM NOT SURE I UNDERSTAND YOU FULLY');
+  assert.equal(eliza.respond('cobalt.'), 'EARLIER YOU SAID YOUR FATHER IS AFRAID OF EVERYBODY');
+});
