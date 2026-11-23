@@ -12,6 +12,7 @@
 
 import { Machine } from '../src/machine.js';
 import { assembleInto } from '../src/assemble.js';
+import { CommunicationsController } from '../src/devices/comm.js';
 
 /** Ordinary work: index arithmetic, load and store, add, subtract, compare. */
 const SOURCE = `
@@ -40,16 +41,17 @@ function makeMachine(options) {
   return machine;
 }
 
-function bench(label, options, clock, seconds = 2) {
+function bench(label, options, clock, configure) {
   const once = () => {
     const machine = makeMachine(options);
     machine.clockRunning = clock;
+    configure?.(machine);
     return machine.run(200000);
   };
   once();                                     // let the JIT settle
   const start = process.hrtime.bigint();
   let executed = 0;
-  while (Number(process.hrtime.bigint() - start) / 1e9 < seconds) executed += once();
+  while (Number(process.hrtime.bigint() - start) / 1e9 < 2) executed += once();
   const elapsed = Number(process.hrtime.bigint() - start) / 1e9;
   const rate = executed / elapsed;
   console.log(
@@ -63,6 +65,12 @@ console.log('7094 instruction throughput\n');
 bench('no channels', { channels: 0 }, false);
 bench('4 channels, idle', { channels: 4 }, false);
 bench('4 channels, interval timer on', { channels: 4 }, true);
-bench('8 channels incl. 2x 7909', { channels: 8, types: { 2: '7909', 4: '7909' } }, true);
-console.log('\nThe spread between the first and last lines is what polling every');
-console.log('channel once per instruction costs. See docs/DESIGN.md.');
+const ctss = { channels: 8, types: { 2: '7909', 4: '7909' } };
+bench('8 channels incl. 2x 7909', ctss, true);
+bench('8 channels with an idle 7750', ctss, true, (machine) => {
+  const controller = new CommunicationsController();
+  controller.enabled = true;
+  const channel = machine.channels[4];
+  channel.attach(0, controller);
+  channel.device = controller;
+});

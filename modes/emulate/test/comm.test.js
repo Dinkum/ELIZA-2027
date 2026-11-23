@@ -248,6 +248,32 @@ test('a write message prints on the line it names', () => {
   assert.equal(printed.join(''), 'HI');
 });
 
+test('only the hangup control code closes the console line', () => {
+  const { channel, comm, printed, core } = commMachine();
+  enable(comm, channel, core);
+  comm.dialUp(CONSOLE_LINE, { ksr35: true });
+  const line = comm.lines[CONSOLE_LINE];
+  let hangups = 0;
+  line.onHangup = () => { hangups++; };
+
+  function sendOutput(data) {
+    const words = message(CONSOLE_LINE + 4, data);
+    words.forEach((value, i) => put(core, 700 + i, value));
+    put(core, 300, cmd(SMS, 0, INHIBIT_ATTENTION1));
+    put(core, 301, cmd(CTLW, 0o20000, 0));
+    put(core, 302, cmd(CPYD, words.length, 700));
+    put(core, 303, cmd(WTR, 0, 0));
+    runChannel(channel, 300);
+  }
+
+  sendOutput([...'HANGUP'].map((character) => outChar(character.charCodeAt(0))));
+  assert.equal(printed.join(''), 'HANGUP');
+  assert.equal(hangups, 0);
+  sendOutput([0o3770]);
+  assert.equal(hangups, 1);
+  assert.equal(line.connected, false);
+});
+
 test('a carriage return prints as a return and a line feed', () => {
   const { channel, comm, printed, core } = commMachine();
   enable(comm, channel, core);

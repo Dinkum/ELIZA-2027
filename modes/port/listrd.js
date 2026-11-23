@@ -27,6 +27,7 @@
  */
 
 import { LIST, LISTMT, MTLIST, NEWBOT, MRKNEG, MRKPOS, MAKEDL } from './slip.js';
+import { SlipFault } from './slip-eliza.js';
 
 const CATEGORY = {
   '=': 1, '-': 2, '+': 3, '.': 5, ')': 6, $: 7, '*': 8, ' ': 9, '(': 10, '/': 11, ',': 13, "'": 14,
@@ -41,7 +42,7 @@ const LETTER = (char) => {
 /** A script tape. LISTRD reads one list off it per call. */
 export class Tape {
   constructor(text) {
-    this.text = text.toUpperCase();
+    this.text = text.replace(/\r\n?/g, '\n').replaceAll('\t', ' ').toUpperCase();
     this.pos = 0;
   }
 }
@@ -76,6 +77,7 @@ class Builder {
       return;
     }
     const datum = this.mode < 0 ? this.word : Number(this.word);
+    if (this.mode >= 0 && !Number.isSafeInteger(datum)) throw new SlipFault('Invalid integer in input');
     NEWBOT(datum, this.current);
     this.word = '';
     this.count = 1;
@@ -96,6 +98,7 @@ class Builder {
 export function LISTRD(xnew, tape) {
   MTLIST(xnew);
   const b = new Builder(xnew, tape.text);
+  if (tape.pos === 0) skipComment(tape);
 
   while (tape.pos < tape.text.length) {
     const char = tape.text[tape.pos];
@@ -133,8 +136,10 @@ export function TREAD(xnew, text) {
   b.stack.push(xnew);
 
   for (const char of text.toUpperCase()) {
-    scan(b, char === '\n' ? ' ' : char);
+    if (char === ')' && b.is === 1) throw new SlipFault('Unmatched closing parenthesis');
+    scan(b, /\s/.test(char) ? ' ' : char);
   }
+  if (b.is !== 1) throw new SlipFault('Unclosed input list');
   b.put(); // the blank card that terminates the read
   return xnew;
 }
@@ -170,6 +175,7 @@ function scan(b, char) {
       return 'more';
 
     case 6: // W9, right parenthesis
+      if (b.is === 0) return 'more';
       b.put();
       b.is -= 1;
       b.stack.pop();

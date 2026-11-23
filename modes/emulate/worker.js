@@ -40,8 +40,9 @@ import { CardReader, CardPunch } from './src/devices/reader.js';
 import { ChronologClock } from './src/devices/chrono.js';
 import { TapeUnit } from './src/devices/tape.js';
 import { DrumChannel, DrumControl } from './src/devices/drum.js';
-import { CommunicationsController, CONSOLE_LINE } from './src/devices/comm.js?v=c8122a3facdd';
+import { CommunicationsController, CONSOLE_LINE } from './src/devices/comm.js?v=903e15244d4a';
 import { unpackPacked } from './unpack.js';
+import { MachinePacer } from './pacing.js';
 
 /** Instructions a second, matching the bridge's pace. */
 const INSTRUCTIONS_PER_SECOND = 2_000_000;
@@ -71,8 +72,7 @@ post({ type: 'ready' });
 let machine = null;
 let comm = null;
 let stopped = false;
-let started = false;
-let startedAt = 0;
+let bootTask = null;
 let executed = 0;
 let dialed = false;
 let backlog = '';
@@ -101,10 +101,6 @@ function consolePrint(text) {
   if (!bootReported && backlog.includes('READY.')) {
     bootReported = true;
     post({ type: 'progress', stage: 'boot' });
-  }
-  if (/HANGUP/.test(text)) {
-    stopped = true;
-    post({ type: 'hangup' });
   }
 }
 
@@ -151,7 +147,12 @@ function mount(packBytes, cmdBytes) {
 
   comm = new CommunicationsController();
   machine.channels[4].attach(0, comm);
-  comm.lines[CONSOLE_LINE].onPrint = consolePrint;
+  const line = comm.lines[CONSOLE_LINE];
+  line.onPrint = consolePrint;
+  line.onHangup = () => {
+    stopped = true;
+    post({ type: 'hangup' });
+  };
 }
 
 function boot() {
@@ -162,10 +163,8 @@ function boot() {
 
 /** Run until `stop()`. Yields between chunks so `send` messages get a turn. */
 async function run() {
-  started = true;
-  startedAt = Date.now();
   emitState();
-  const paced = INSTRUCTIONS_PER_SECOND > 0;
+  const pacer = new MachinePacer(INSTRUCTIONS_PER_SECOND, CHUNK);
   while (!stopped) {
     if (!machine.running) machine.start();
     executed += machine.run(CHUNK);
@@ -173,19 +172,30 @@ async function run() {
       dialed = true;
       dial();
     }
-    if (paced) {
-      const due = (executed / INSTRUCTIONS_PER_SECOND) * 1000;
-      // The pacing wait has the same clamping exposure as the yield: a
-      // hidden tab would stretch each 100 ms slice to a second. Sleeping in
-      // 100 ms pieces through the unclamped channel keeps the pace honest.
-      while (due - (Date.now() - startedAt) > 100) {
-        await yieldNow();
-        if (stopped) return;
-      }
-      const left = due - (Date.now() - startedAt);
-      if (left > 0) await new Promise((done) => setTimeout(done, left));
-    }
-    await yieldNow();
+    const delay = pacer.delay(machine.lastRunSlots);
+    if (delay >= 1) await new Promise((done) => setTimeout(done, delay));
+    else await yieldNow();
+  }
+}
+
+async function bootMachine({ pack, cmd }) {
+  stopped = false;
+  dialed = false;
+  executed = 0;
+  bootReported = false;
+  backlog = '';
+  try {
+    post({ type: 'progress', stage: 'unpack' });
+    mount(pack, cmd);
+    post({ type: 'progress', stage: 'mounted' });
+    boot();
+    await run();
+  } catch (error) {
+    stopped = true;
+    post({ type: 'error', message: error?.message ?? String(error) });
+  } finally {
+    comm = null;
+    machine = null;
   }
 }
 
@@ -193,7 +203,7 @@ self.onmessage = async (event) => {
   const message = event.data ?? {};
 
   if (message.type === 'send') {
-    if (!comm?.enabled) return;
+    if (!comm?.enabled || !comm.lines[CONSOLE_LINE].connected || stopped) return;
     comm.typeLine(CONSOLE_LINE, String(message.text ?? ''));
     return;
   }
@@ -205,19 +215,10 @@ self.onmessage = async (event) => {
   }
 
   if (message.type === 'boot') {
-    try {
-      bootReported = false;
-      backlog = '';
-      post({ type: 'progress', stage: 'unpack' });
-      mount(message.pack, message.cmd);
-      post({ type: 'progress', stage: 'mounted' });
-      boot();
-      if (backlog) post({ type: 'print', text: backlog });
-      await run();
-    } catch (error) {
-      post({ type: 'error', message: error?.message ?? String(error) });
-    }
-    return;
+    if (bootTask && !stopped) return;
+    if (bootTask) await bootTask;
+    if (bootTask) return;
+    bootTask = bootMachine(message).finally(() => { bootTask = null; });
   }
 };
 

@@ -114,6 +114,18 @@ test('HTR with traps armed but nothing in flight stops the machine', () => {
   assert.equal(machine.cpu.progStop, true);
 });
 
+test('a halted processor accounts for paced slots while a channel is in flight', () => {
+  const machine = new Machine({ channels: 0 });
+  machine.channels.push({ inOperation: true });
+  machine.clockRunning = true;
+  machine.start();
+  machine.cpu.progStop = true;
+
+  assert.equal(machine.run(20000), 0);
+  assert.equal(machine.lastRunSlots, 20000);
+  assert.equal(machine.ticks, 3);
+});
+
 test('HPR stops and a start resumes at the next instruction', () => {
   const machine = build(`
          ORG   100

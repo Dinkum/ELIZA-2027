@@ -81,7 +81,7 @@ export function vectorsAreCompatible(file, client, scriptSha256) {
  * false and every embed resolving to null, which the engine already handles.
  */
 export class EncoderClient {
-  constructor({ workerUrl = new URL('./encoder.worker.js?v=cc435b77aaff', import.meta.url), device = 'wasm' } = {}) {
+  constructor({ workerUrl = new URL('./encoder.worker.js?v=4e1e43272ff4', import.meta.url), device = 'wasm' } = {}) {
     this.workerUrl = workerUrl;
     this.device = device;
     this.worker = null;
@@ -98,32 +98,39 @@ export class EncoderClient {
     if (this.worker) return;
     this.worker = new Worker(this.workerUrl, { type: 'module' });
     this.worker.onmessage = ({ data }) => {
-      const entry = this.pending.get(data.id);
+      const entry = this.pending.get(data?.id);
       if (!entry) return;
       this.pending.delete(data.id);
+      clearTimeout(entry.timer);
       if (data.ok) entry.resolve(data);
       else entry.reject(new Error(data.error));
     };
-    this.worker.onerror = (event) => {
-      this.error = String(event.message || 'worker failed to start');
-      for (const entry of this.pending.values()) entry.reject(new Error(this.error));
-      this.pending.clear();
-    };
+    this.worker.onerror = (event) => this.terminate(event.message || 'Encoder worker failed');
+    this.worker.onmessageerror = () => this.terminate('Encoder worker sent an unreadable reply');
   }
 
   send(message) {
     this.start();
     const id = (this.nextId += 1);
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.worker.postMessage({ ...message, id, device: this.device });
+      const timeout = message.type === 'load' ? 60000 : message.texts ? 15000 : 5000;
+      const timer = setTimeout(() => this.terminate(`Encoder ${message.type} timed out`), timeout);
+      this.pending.set(id, { resolve, reject, timer });
+      try {
+        this.worker.postMessage({ ...message, id, device: this.device });
+      } catch (error) {
+        this.terminate(String(error?.message ?? error));
+      }
     });
   }
 
   /** Resolves true when the model is in memory. Never rejects. */
   async load() {
     try {
-      const info = await this.send({ type: 'load' });
+      const request = this.send({ type: 'load' });
+      const worker = this.worker;
+      const info = await request;
+      if (this.worker !== worker) return false;
       // Recorded so a caller can prove that precomputed vectors came from this
       // exact model at this exact revision before trusting them.
       this.model = info.model ?? null;
@@ -139,8 +146,8 @@ export class EncoderClient {
   /** One vector, or null. Never rejects — a missing vector is a normal state. */
   async embed(text) {
     try {
-      const { vectors } = await this.send({ type: 'embed', text });
-      return Float32Array.from(vectors[0]);
+      const { flat } = await this.send({ type: 'embed', text });
+      return flat;
     } catch (error) {
       this.error = String((error && error.message) || error);
       return null;
@@ -148,15 +155,25 @@ export class EncoderClient {
   }
 
   async embedMany(texts) {
-    const { vectors } = await this.send({ type: 'embed', texts });
-    return vectors.map((vector) => Float32Array.from(vector));
+    const { flat, width } = await this.send({ type: 'embed', texts });
+    return texts.map((_, i) => flat.subarray(i * width, (i + 1) * width));
   }
 
   /** Give the browser its threads back. */
-  terminate() {
-    if (this.worker) this.worker.terminate();
+  terminate(reason) {
+    if (reason) this.error = reason;
+    if (this.worker) {
+      this.worker.onmessage = null;
+      this.worker.onerror = null;
+      this.worker.onmessageerror = null;
+      this.worker.terminate();
+    }
     this.worker = null;
     this.ready = false;
+    for (const entry of this.pending.values()) {
+      clearTimeout(entry.timer);
+      entry.reject(new Error(reason ?? 'Encoder worker stopped'));
+    }
     this.pending.clear();
   }
 }
@@ -168,18 +185,22 @@ export class EncoderClient {
  * that a real model actually improves the routing. It is a dynamic import so
  * the browser never evaluates a Node entry point.
  */
-export async function nodeEmbedder({ model = 'Xenova/all-MiniLM-L6-v2', dtype = 'q8', revision = undefined } = {}) {
+export async function nodeEmbedder({
+  model = 'Xenova/all-MiniLM-L6-v2',
+  dtype = 'q8',
+  revision = '751bff37182d3f1213fa05d7196b954e230abad9',
+  localModelPath,
+} = {}) {
   const { pipeline } = await import('@huggingface/transformers');
   // A revision pins the weights to one commit. Anything derived from the model
   // — a family vector, a query embedding — is only comparable to others from
   // that same commit, so this is passed through rather than left floating.
-  const extractor = await pipeline('feature-extraction', model, revision ? { dtype, revision } : { dtype });
+  const extractor = await pipeline('feature-extraction', localModelPath ?? model, {
+    dtype, revision, local_files_only: Boolean(localModelPath),
+  });
   return async function embedMany(texts) {
     const output = await extractor(texts, { pooling: 'mean', normalize: true });
     const [, width] = output.dims;
-    const flat = Array.from(output.data);
-    const vectors = [];
-    for (let i = 0; i < flat.length; i += width) vectors.push(Float32Array.from(flat.slice(i, i + width)));
-    return vectors;
+    return texts.map((_, i) => output.data.subarray(i * width, (i + 1) * width));
   };
 }

@@ -102,8 +102,8 @@ export class LinePrinter {
     text = text.replace(/\s+$/, '');
     this.row = 0;
     this.columns.fill(0);
-    this.lines.push(text);
     if (this.onPrint) this.onPrint(text);
+    else this.lines.push(text);
   }
 
   endRecord() {}

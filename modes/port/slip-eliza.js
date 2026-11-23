@@ -12,7 +12,7 @@
  */
 
 import {
-  LIST, LISTMT, MTLIST, IRALST, NEWBOT, POPTOP, POPBOT, TOP,
+  LIST, LIST9, LISTMT, MTLIST, IRALST, NEWBOT, NEWTOP, POPTOP, POPBOT, TOP,
   SEQRDR, SEQLR, SEQLL, RDRNEG, MRKNEG, NAMTST, LSTNAM, MAKEDL,
   LSSCPY, LSTEQL, LNKBOT, INLSTL, ref, CELL_CHARACTERS,
 } from './slip.js';
@@ -52,6 +52,7 @@ export function PARTN(slst, part, signal) {
 
     if (NAMTST(datum) === 0 && TOP(datum) === tag) {
       count -= 1;
+      if (NAMTST(part[count]) !== 0) throw new SlipFault('Description list has no word');
       const it = LSSCPY(datum, LIST());
       POPTOP(it); // drop the signal itself
       MAKEDL(it, part[count]);
@@ -132,6 +133,13 @@ export function GOODY(lst, b) {
 
 // --- XMATCH ---------------------------------------------------------------
 
+function moveWord(word, into, descriptions) {
+  if (descriptions && NAMTST(word) === 0 && LSTNAM(word) !== 0) {
+    descriptions.set(word.left, LSTNAM(word));
+  }
+  INLSTL(word, into);
+}
+
 /**
  * XMATCH. — match one stretch of the pattern, from A(AA) to A(AC).
  *
@@ -143,7 +151,7 @@ export function GOODY(lst, b) {
  *
  * AB and BA are modified in place, as they are in MAD.
  */
-function XMATCH(a, b, aa, ab, ac, ba) {
+function XMATCH(a, b, aa, ab, ac, ba, descriptions) {
   const blast = b[0];
   let number = LIST();
   let bb;
@@ -223,6 +231,10 @@ function XMATCH(a, b, aa, ab, ac, ba) {
         continue;
 
       case 'FOUND':
+        if (obj < 0 || bmark + obj > blast + 1) {
+          state.label = 'FAIL';
+          continue;
+        }
         NEWBOT({ lnkl: obj, lnkr: bmark }, number);
         bmark += obj;
         state.label = 'GO';
@@ -235,8 +247,8 @@ function XMATCH(a, b, aa, ab, ac, ba) {
           a[i] = LIST();
           if (obj === 0) obj = bb - ba.v;
           bb -= obj;
-          if (bb < ba.v) { failed = true; break; }
-          for (j = 0; !(j === obj); j += 1) INLSTL(b[bb + j], a[i]); // CONC
+          if (obj < 0 || bb < ba.v || bb + obj > blast + 1) { failed = true; break; }
+          for (j = 0; !(j === obj); j += 1) moveWord(b[bb + j], a[i], descriptions); // CONC
         }
         if (failed) { state.label = 'FAIL'; continue; }
 
@@ -253,7 +265,7 @@ function XMATCH(a, b, aa, ab, ac, ba) {
           j = it.lnkr;
           if (NAMTST(a[i]) === 0) IRALST(a[i]);
           a[i] = LIST();
-          for (let k = 0; !(k === obj); k += 1) INLSTL(b[j + k], a[i]); // PLACE
+          for (let k = 0; !(k === obj); k += 1) moveWord(b[j + k], a[i], descriptions); // PLACE
         }
       }
 
@@ -274,7 +286,7 @@ function XMATCH(a, b, aa, ab, ac, ba) {
  * On success OUTLST holds one list per pattern element and YMATCH returns it;
  * on failure OUTLST is emptied and YMATCH returns 0.
  */
-export function YMATCH(slst, olst, outlst) {
+export function YMATCH(slst, olst, outlst, descriptions) {
   const a = [];
   const b = [];
   PARTN(slst, a, ' NONE');
@@ -325,7 +337,7 @@ export function YMATCH(slst, olst, outlst) {
 
     // MATCH
     const abRef = ref(markb);
-    if (XMATCH(a, b, marka, abRef, markc, ba) === 0) {
+    if (XMATCH(a, b, marka, abRef, markc, ba, descriptions) === 0) {
       markb = abRef.v;
       if (markc > limit) { switch_ = 2; break outer; } // SUCCES
       continue outer;
@@ -360,7 +372,7 @@ export function YMATCH(slst, olst, outlst) {
  * straight to TXTPRT without checking. That is the path a number typed by the
  * operator takes.
  */
-export function ASSMBL(rhs, part, xnew) {
+export function ASSMBL(rhs, part, xnew, descriptions) {
   const a = [];
   let s = SEQRDR(part);
   const flag = ref(0);
@@ -376,8 +388,23 @@ export function ASSMBL(rhs, part, xnew) {
 
     if (isInteger(datum)) {
       if (datum >= limit) return 0; // FAIL
-      const copy = LIST();
-      INLSTL(LSSCPY(a[datum], copy), xnew);
+      const source = a[datum];
+      const copy = LSSCPY(source, LIST());
+      if (descriptions) {
+        let cell = copy.right;
+        for (let original = source.right; original !== source; original = original.right) {
+          const tags = descriptions.get(original);
+          if (tags) {
+            // PRE makes this reply an input list. PARTN reads tags after their word.
+            const signal = LIST9();
+            NEWBOT('/', signal);
+            NEWTOP(LSSCPY(tags, signal), cell);
+            cell = cell.right;
+          }
+          cell = cell.right;
+        }
+      }
+      INLSTL(copy, xnew);
       IRALST(copy);
     } else {
       NEWBOT(datum, xnew);
@@ -404,6 +431,7 @@ export function REGEL(spec, obj, xnew) {
 
   while (datum !== '=') { // LEFT
     datum = SEQLR(s, f);
+    if (f.v > 0) throw new SlipFault('MEMORY transformation has no equals sign');
     const cell = NEWBOT(datum, lhs);
     if (RDRNEG(s)) MRKNEG(cell);
   }

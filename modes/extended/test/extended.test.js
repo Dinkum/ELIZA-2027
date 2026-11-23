@@ -24,11 +24,7 @@ import { SemanticIndex, createSemantics, precomputeVectors, HashedEncoder } from
 
 const SCRIPT = JSON.parse(readFileSync(new URL('../script.json', import.meta.url), 'utf8'));
 
-/**
- * The engine mutates the script as it talks — template rotation advances, and
- * rules write to a shared pattern. Every test gets its own copy.
- */
-const fresh = (options) => new ExtendedEliza(structuredClone(SCRIPT), options);
+const fresh = (options) => new ExtendedEliza(SCRIPT, options);
 
 /** Which family produced the last reply, read off the trace. */
 function winningFamily(eliza) {
@@ -68,7 +64,7 @@ const FAMILY_CASES = [
   { family: 'SMALL_TALK', setup: [], input: 'hello there' },
   { family: 'ANXIETY', setup: [], input: 'i am anxious about everything' },
   { family: 'FOLLOWUP_YESNO', setup: ['my boss is on my case'], input: 'yes' },
-  { family: 'MEMORY_RECALL', setup: ['i feel anxious because my boss keeps piling on work'], input: 'mm hmm' },
+  { family: 'MEMORY_RECALL', setup: ['i feel anxious because my boss keeps piling on work'], input: 'go on' },
   { family: 'GENERIC', setup: [], input: 'purple monkey dishwasher' },
 ];
 
@@ -362,6 +358,56 @@ test('a literal match is never overridden by the index', () => {
   assert.equal(eliza.lastTrace.some((s) => s.step === 'semantics'), false);
 });
 
+test('the async encoder is called only after a literal miss', async () => {
+  const eliza = fresh();
+  let requests = 0;
+  const lookup = async () => {
+    requests++;
+    return [{ family: 'FAMILY', score: 1 }];
+  };
+  await eliza.respondWithSemantics('my mother called', lookup);
+  assert.equal(requests, 0);
+  await eliza.respondWithSemantics('the person who raised me will not speak to me any more', lookup);
+  assert.equal(requests, 1);
+  assert.equal(positive(eliza).source, 'semantic');
+  assert.equal(winningFamily(eliza), 'FAMILY');
+});
+
+test('a tied semantic score makes both families unconfident', () => {
+  const index = new SemanticIndex(SCRIPT, { vectors: { FAMILY: [1, 0], LONELINESS: [1, 0] } });
+  const suggestions = index.suggest('', [1, 0]);
+  assert.deepEqual(suggestions.map(({ confident }) => confident), [false, false]);
+});
+
+test('response rotation belongs to the conversation', () => {
+  const first = fresh();
+  const second = fresh();
+  const input = 'hello there';
+  const reply = first.respond(input);
+  assert.equal(second.respond(input), reply);
+  assert.notEqual(first.respond(input), reply);
+});
+
+test('spaced phrases and negated states keep their meaning', () => {
+  for (const [input, family] of [
+    ['i feel ill', 'HEALTH'],
+    ['i feel grief', 'GRIEF'],
+    ['i got laid off', 'WORK_STRESS'],
+    ['i have no friends', 'LONELINESS'],
+    ['i do not have anyone', 'LONELINESS'],
+    ['i have no anxiety', 'GENERIC'],
+  ]) {
+    const eliza = fresh();
+    eliza.respond(input);
+    assert.equal(winningFamily(eliza), family, input);
+  }
+});
+
+test('reflection supports object pronouns, punctuation, and contractions', () => {
+  const reply = fresh().respond("I want you to hear me, even when I'm quiet");
+  assert.match(reply, /you want me to hear you, even when you're quiet/i);
+});
+
 /* -------------------------------------------------------------------------- */
 /* Trace                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -398,7 +444,7 @@ test('every template names a capture its pattern can actually produce', () => {
       const patterns = rule.patternsFrom
         ? SCRIPT.patternSets?.[rule.patternsFrom] || []
         : rule.patterns || [];
-      for (const pattern of patterns) {
+      for (const pattern of [...patterns, ...(rule.semanticPatterns || [])]) {
         const producible = new Set();
         for (const token of pattern.match || []) {
           // Capture grammar: {name}, {name:/TAG}, {name:flip}.

@@ -543,12 +543,8 @@ export class FileControl {
     // written finds no record, which is not the same as reading zeroes —
     // unless the cylinder has been formatted, in which case the record
     // slots are on the surface and a read finds zeroes in them.
-    let track = writing
-      ? module.ensureTrack(this.access, position, { dirty: true })
-      : module.track(this.access, position);
-    if (!track && module.formats.has(this.formatKey(module, this.access, position))) {
-      track = module.ensureTrack(this.access, position);
-    }
+    this.trackWords = module.type.wordsPerTrack;
+    const track = this.trackForTransfer(module, position, writing);
 
     if (!track) {
       // Nothing was ever written here. A read finds no record.
@@ -556,12 +552,6 @@ export class FileControl {
       return false;
     }
     this.track = track;
-    this.trackWords = module.type.wordsPerTrack;
-
-    // A formatted track keeps its record slots even when nothing has been
-    // written in them yet. Lay them out so the transfer has somewhere to
-    // put or find its words; they read back as zeroes until a write lands.
-    if (track.hi[1] === 0) this.layOutFormat(module, track, this.access, position);
 
     if (this.mode === SINGLE_RECORD) {
       const found = this.findRecord(track);
@@ -577,7 +567,7 @@ export class FileControl {
       const last = (Math.floor(position / perCylinder) + 1) * perCylinder;
       this.spans = [];
       for (let number = position; number < last; number++) {
-        const each = module.track(this.access, number);
+        const each = number === position ? track : this.trackForTransfer(module, number);
         if (!each) break;
         this.spans.push(...this.trackSpans(each));
       }
@@ -596,6 +586,17 @@ export class FileControl {
     this.spanIndex = 0;
     this.spanOffset = 0;
     return true;
+  }
+
+  trackForTransfer(module, position, writing = false) {
+    let track = writing
+      ? module.ensureTrack(this.access, position, { dirty: true })
+      : module.track(this.access, position);
+    if (!track && module.formats.has(this.formatKey(module, this.access, position))) {
+      track = module.ensureTrack(this.access, position);
+    }
+    if (track?.hi[1] === 0) this.layOutFormat(module, track, this.access, position);
+    return track;
   }
 
   /** The key under which a cylinder's format is kept on the module. */

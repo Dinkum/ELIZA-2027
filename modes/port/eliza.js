@@ -27,7 +27,7 @@
 import {
   LIST, LISTMT, MTLIST, IRALST, NEWBOT, NEWTOP, POPTOP, TOP, BOT, SUBST,
   SEQRDR, SEQLR, SEQLL, RDRNEG, LSPNTR, RDRCPY, REMOVE, MRKNEG, MRKPOS,
-  LSSCPY, LSTNAM, NODLST, NULSTL, NULSTR, LIST9, ref,
+  LSSCPY, LSTNAM, NODLST, NULSTL, NULSTR, LIST9, ref, withSlipCells,
 } from './slip.js';
 import { YMATCH, ASSMBL, REGEL, TXTPRT, SlipFault } from './slip-eliza.js';
 import { LISTRD, TREAD, Tape } from './listrd.js';
@@ -122,6 +122,11 @@ export class ElizaPort {
   constructor(scriptText, { hashBits = 5 } = {}) {
     this.hashBits = hashBits;
     this.noneIndex = 1 << hashBits;
+    this.cellAddresses = { next: 0 };
+    withSlipCells(this.cellAddresses, () => this.#readTape(scriptText));
+  }
+
+  #readTape(scriptText) {
     this.TEST = LIST();
     this.INPUT = LIST();
     this.OUTPUT = LIST();
@@ -161,7 +166,7 @@ export class ElizaPort {
           LSSCPY(POPTOP(this.INPUT), this.MYTRAN[i]);
         }
       } else {
-        NEWBOT(LSSCPY(this.INPUT, LIST9()), this.KEY[HASH(TOP(this.INPUT), hashBits)]);
+        NEWBOT(LSSCPY(this.INPUT, LIST9()), this.KEY[HASH(TOP(this.INPUT), this.hashBits)]);
       }
     }
   }
@@ -201,7 +206,7 @@ export class ElizaPort {
   respond(text) {
     const out = [];
     try {
-      this.#major(text, (line) => out.push(line));
+      withSlipCells(this.cellAddresses, () => this.#major(text, (line) => out.push(line)));
     } catch (error) {
       if (error instanceof SlipFault) throw error;
       throw new SlipFault(this.#diagnose(error));
@@ -234,6 +239,7 @@ export class ElizaPort {
     let TRANS = null;
 
     let label = 'START';
+    let transfers = 0;
 
     for (;;) {
       switch (label) {
@@ -276,7 +282,7 @@ export class ElizaPort {
           }
           if (F.v > 0) { label = 'ENDTXT'; continue; }
 
-          I = HASH(WORD, 5);
+          I = HASH(WORD, this.hashBits);
           SCANER = SEQRDR(this.KEY[I]);
           SF.v = 0;
           for (;;) { // SEARCH
@@ -321,7 +327,7 @@ export class ElizaPort {
               IRALST(OUT);
               return; // T'O START
             }
-            ES = BOT(TOP(this.KEY[32]));
+            ES = BOT(TOP(this.KEY[this.noneIndex]));
             label = 'TRY';
             continue;
           }
@@ -340,20 +346,27 @@ export class ElizaPort {
         case 'MATCH': // 001300
           ES = SEQLR(IT, FR);
           if (isList(ES) && TOP(ES) === '=') {
+            if (++transfers > 256) throw new SlipFault('Cyclic script link');
             // A link at the transformation level: (HOW (=WHAT))
             S = SEQRDR(ES);
             SEQLR(S, F);
             WORD = SEQLR(S, F);
-            I = HASH(WORD, 5);
+            I = WORD === 'NONE' ? this.noneIndex : HASH(WORD, this.hashBits);
             SCANER = SEQRDR(this.KEY[I]);
             for (;;) { // SCAN
               const ITS = SEQLR(SCANER, F);
               if (F.v > 0) { label = 'NOMATCH'; break; }
               if (WORD === TOP(ITS)) {
                 S = SEQRDR(ITS);
-                do { ES = SEQLR(S, F); } while (F.v !== 0); // SCANI
+                do { ES = SEQLR(S, F); } while (F.v < 0); // SCANI
+                if (F.v > 0) { label = 'NOMATCH'; break; }
                 IT = RDRCPY(S);
-                label = 'TRY';
+                if (isList(ES) && TOP(ES) === '=') {
+                  SEQLL(IT, FR);
+                  label = 'MATCH';
+                } else {
+                  label = 'TRY';
+                }
                 break;
               }
             }
@@ -399,7 +412,7 @@ export class ElizaPort {
         // R* * * * * * * * * * INSERT NEW KEYWORD LIST
         case 'NEWLST': // 001770
           POPTOP(this.INPUT);
-          NEWBOT(LSSCPY(this.INPUT, LIST9()), this.KEY[HASH(TOP(this.INPUT), 5)]);
+          NEWBOT(LSSCPY(this.INPUT, LIST9()), this.KEY[HASH(TOP(this.INPUT), this.hashBits)]);
           return; // T'O START
 
         // R* * * * * * * * * * SCRIPT ERROR EXIT

@@ -2,7 +2,7 @@
   "meta": {
     "name": "ELIZA EXTENDED",
     "lineage": "1966 DOCTOR (Weizenbaum, CACM). Extension of the 1966 design, not a reconstruction.",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "note": "Keyed on literal words and tags. Every capture is a matched text span, never an inferred meaning. The semantic index may only suggest a family to try; it never fills a slot."
   },
 
@@ -15,7 +15,6 @@
       "i've": "i have",
       "ive": "i have",
       "i'll": "i will",
-      "ill": "i will",
       "i'd": "i would",
       "don't": "do not",
       "dont": "do not",
@@ -52,7 +51,6 @@
       "let's": "let us",
       "ain't": "is not",
       "aint": "is not",
-      "wasn't": "was not",
       "weren't": "were not",
       "werent": "were not",
       "ain't got": "do not have",
@@ -67,7 +65,6 @@
       "oughtn't": "ought not",
       "hadn't": "had not",
       "hadnt": "had not",
-      "hasn't": "has not",
       "gimme": "give me",
       "lemme": "let me",
       "gonna": "going to",
@@ -148,8 +145,6 @@
       "blue": "sad",
       "down": "sad",
       "heartbroken": "sad",
-      "grief": "sad",
-      "grieving": "sad",
       "depressing": "depressed",
       "anguish": "miserable",
       "hopelessness": "hopeless",
@@ -221,7 +216,7 @@
     "BARE_NEGATION": ["never", "none", "not", "nothing", "nobody", "nowhere", "cannot", "refuse", "refuses"],
     "SELF_BLAME": ["worthless", "useless", "hopeless", "failure", "stupid", "pathetic", "broken", "damaged", "crazy", "insane", "terrible-person", "bad-person", "loser"],
     "ANGER_WORD": ["angry", "furious", "mad", "livid", "enraged", "fuming", "irate", "seething"],
-    "NO_CONTACT": ["no", "anyone", "anybody", "someone", "someone-out-there", "alone", "lonely", "by-myself", "on-my-own", "no-friends", "no-friend"],
+    "NO_CONTACT": ["no", "no-one", "anyone", "anybody", "someone", "someone-out-there", "alone", "lonely", "by-myself", "on-my-own", "no-friends", "no-friend"],
     "NO_ONE": ["nobody", "no-one", "noone", "anyone", "anybody", "alone", "lonely", "by-myself", "on-my-own", "no-friends", "no-friend"],
     "WANT": ["want", "wish", "need", "hope", "crave", "long-for", "yearn", "desire", "aim", "goal", "dream-of", "aspire"],
     "PREFER": ["would", "could", "should", "rather", "might", "prefer", "rather-not", "suppose", "maybe", "perhaps", "possibly"],
@@ -245,7 +240,15 @@
       "mine": "yours",
       "myself": "yourself",
       "am": "are",
-      "you": "i",
+      "you": "I",
+      "i'm": "you're",
+      "you're": "I'm",
+      "i've": "you've",
+      "you've": "I've",
+      "i'll": "you'll",
+      "you'll": "I'll",
+      "i'd": "you'd",
+      "you'd": "I'd",
       "your": "my",
       "yours": "mine",
       "yourself": "myself",
@@ -300,6 +303,7 @@
       "topic": "feeling",
       "rank": 30,
       "examples": [
+        "i cannot shake this feeling since things started going wrong",
         "i feel anxious because my boss keeps piling on work",
         "i am sad because nobody listens to me",
         "i get angry because my brother never helps",
@@ -308,6 +312,13 @@
       "rules": [
         {
           "id": "FEELING_CAUSE.because",
+          "semanticPatterns": [
+            {
+              "match": ["0", "i", "cannot", "shake", "this", "feeling", "0"],
+              "unnegated": ["i"],
+              "templates": ["What was happening when you started to feel that way?"]
+            }
+          ],
           "rank": 34,
           "tags": ["FEELING"],
           "keywords": ["because"],
@@ -316,9 +327,9 @@
               "match": ["0", "{feeling:/FEELING}", "because", "{reason}", "0"],
               "unnegated": ["feeling"],
               "templates": [
-                "You say {reason}. What about that affects you most?",
-                "So {reason}. That is what makes you feel {feeling}.",
-                "You mention {reason}. Does it come up often?"
+                "You say {reason:flip}. What about that affects you most?",
+                "So {reason:flip}. That is what makes you feel {feeling}.",
+                "You mention {reason:flip}. Does it come up often?"
               ],
               "remember": "{reason}",
               "context": { "topic": "feeling", "expect": ["YES", "NO"] }
@@ -326,8 +337,8 @@
             {
               "match": ["0", "because", "{reason}", "0"],
               "templates": [
-                "You say {reason}. What about that affects you most?",
-                "You trace it back to this: {reason}."
+                "You say {reason:flip}. What about that affects you most?",
+                "You trace it back to this: {reason:flip}."
               ],
               "remember": "{reason}",
               "context": { "topic": "feeling" }
@@ -421,6 +432,13 @@
       "rules": [
         {
           "id": "FAMILY.relative",
+          "semanticPatterns": [
+            {
+              "match": ["0", "the", "person", "who", "raised", "me", "0"],
+              "unnegated": ["the"],
+              "templates": ["Tell me more about the person who raised you."]
+            }
+          ],
           "rank": 30,
           "tags": ["FAMILY"],
           "patterns": [
@@ -452,6 +470,7 @@
       "topic": "relationship",
       "rank": 26,
       "examples": [
+        "i keep arguing with the person i am dating",
         "my boyfriend made me come here",
         "my girlfriend and i argue a lot",
         "my partner is distant lately"
@@ -459,6 +478,13 @@
       "rules": [
         {
           "id": "RELATIONSHIP.partner",
+          "semanticPatterns": [
+            {
+              "match": ["0", "the", "person", "i", "am", "dating", "0"],
+              "unnegated": ["the"],
+              "templates": ["How have things been with the person you are dating?"]
+            }
+          ],
           "rank": 30,
           "tags": ["PARTNER"],
           "patterns": [
@@ -490,6 +516,7 @@
       "topic": "sleep",
       "rank": 24,
       "examples": [
+        "i stare at the ceiling all night and cannot drift off",
         "i cannot sleep at night",
         "i am exhausted all the time",
         "i keep waking up at three in the morning",
@@ -498,6 +525,13 @@
       "rules": [
         {
           "id": "SLEEP_TIRED.rest",
+          "semanticPatterns": [
+            {
+              "match": ["0", "stare", "at", "the", "ceiling", "all", "night", "0"],
+              "unnegated": ["stare"],
+              "templates": ["What goes through your mind in those hours?"]
+            }
+          ],
           "rank": 28,
           "tags": ["SLEEP"],
           "patterns": [
@@ -516,7 +550,7 @@
         {
           "id": "SLEEP_TIRED.exhausted",
           "rank": 33,
-          "keywords": ["tired", "exhausted"],
+          "keywords": ["exhausted"],
           "patterns": [
             {
               "match": ["0", "{state:/TIRED_WORD}", "0"],
@@ -539,6 +573,7 @@
       "topic": "anxiety",
       "rank": 25,
       "examples": [
+        "i am bracing for what might happen and cannot relax",
         "i am anxious about everything",
         "i keep panicking at night",
         "i feel restless all the time",
@@ -547,17 +582,24 @@
       "rules": [
         {
           "id": "ANXIETY.about",
+          "semanticPatterns": [
+            {
+              "match": ["0", "bracing", "for", "what", "might", "happen", "0"],
+              "unnegated": ["bracing"],
+              "templates": ["What do you picture happening?"]
+            }
+          ],
           "rank": 29,
           "tags": ["ANXIETY_WORD"],
-          "keywords": ["anxious", "worried", "afraid", "scared"],
+          "keywords": ["anxious", "worried", "afraid"],
           "patterns": [
             {
               "match": ["0", "{state:/ANXIETY_WORD}", "about", "{subject}", "0"],
               "unnegated": ["state"],
               "templates": [
-                "What is it about {subject} that makes you {state}?",
-                "How often do you feel {state} about {subject}?",
-                "Does {subject} always leave you {state}?"
+                "What is it about {subject:flipObject} that makes you {state}?",
+                "How often do you feel {state} about {subject:flipObject}?",
+                "How do you react when it comes up?"
               ],
               "remember": "{subject}",
               "context": { "topic": "anxiety", "expect": ["YES", "NO"] }
@@ -583,6 +625,7 @@
       "topic": "health",
       "rank": 26,
       "examples": [
+        "my nose keeps running and my eyes have been watering",
         "i have been sick all week",
         "i am getting over a cold",
         "i have a splitting headache",
@@ -591,6 +634,13 @@
       "rules": [
         {
           "id": "HEALTH.symptom",
+          "semanticPatterns": [
+            {
+              "match": ["0", "my", "nose", "keeps", "running", "0"],
+              "unnegated": ["my"],
+              "templates": ["What have you noticed about how you are feeling physically?"]
+            }
+          ],
           "rank": 30,
           "tags": ["SICK"],
           "patterns": [
@@ -598,8 +648,8 @@
               "match": ["0", "{ailment:/SICK}", "0"],
               "unnegated": ["ailment"],
               "templates": [
-                "How long have you had {ailment}?",
-                "What have you been able to do while {ailment}?",
+                "When did you start feeling like this?",
+                "How has this affected your day?",
                 "Has it kept you from anything that matters?"
               ],
               "remember": "{ailment}",
@@ -615,6 +665,7 @@
       "topic": "money",
       "rank": 24,
       "examples": [
+        "my bank account is empty and i have nothing to live on",
         "i cannot afford the rent this month",
         "the bills keep piling up",
         "i am deep in debt",
@@ -623,6 +674,13 @@
       "rules": [
         {
           "id": "MONEY.pressure",
+          "semanticPatterns": [
+            {
+              "match": ["0", "my", "bank", "account", "is", "empty", "0"],
+              "unnegated": ["empty"],
+              "templates": ["What has been hardest to pay for?"]
+            }
+          ],
           "rank": 28,
           "tags": ["MONEY"],
           "patterns": [
@@ -646,6 +704,7 @@
       "topic": "school",
       "rank": 24,
       "examples": [
+        "i have a term paper due tomorrow and have not started writing it",
         "i am failing my classes",
         "finals are next week and i cannot study",
         "my professor never answers my emails",
@@ -654,6 +713,13 @@
       "rules": [
         {
           "id": "SCHOOL.load",
+          "semanticPatterns": [
+            {
+              "match": ["0", "i", "have", "a", "term", "paper", "due", "0"],
+              "unnegated": ["i"],
+              "templates": ["What do you still have to finish?"]
+            }
+          ],
           "rank": 28,
           "tags": ["SCHOOL"],
           "patterns": [
@@ -677,6 +743,7 @@
       "topic": "grief",
       "rank": 32,
       "examples": [
+        "i visit the grave every week and wish we could talk",
         "my father died last month",
         "i lost my grandmother in the spring",
         "i still cannot believe she is gone",
@@ -685,6 +752,13 @@
       "rules": [
         {
           "id": "GRIEF.loss",
+          "semanticPatterns": [
+            {
+              "match": ["0", "visit", "the", "grave", "0"],
+              "unnegated": ["visit"],
+              "templates": ["What does that absence mean to you?"]
+            }
+          ],
           "rank": 36,
           "tags": ["DEATH"],
           "patterns": [
@@ -709,6 +783,7 @@
       "topic": "selfesteem",
       "rank": 30,
       "examples": [
+        "i feel like nothing i do measures up and i always let people down",
         "i feel worthless",
         "i am a failure at everything",
         "i hate myself",
@@ -717,6 +792,13 @@
       "rules": [
         {
           "id": "SELF_ESTEEM.judgment",
+          "semanticPatterns": [
+            {
+              "match": ["0", "nothing", "i", "do", "measures", "up", "0"],
+              "unnegated": ["nothing"],
+              "templates": ["Whose judgment matters most when you feel that way?"]
+            }
+          ],
           "rank": 34,
           "tags": ["SELF_BLAME"],
           "patterns": [
@@ -741,6 +823,7 @@
       "topic": "anger",
       "rank": 30,
       "examples": [
+        "i get so angry it makes my blood boil",
         "i am furious at my brother",
         "she makes me so angry",
         "i hate how he talks to me",
@@ -749,17 +832,24 @@
       "rules": [
         {
           "id": "ANGER.target",
+          "semanticPatterns": [
+            {
+              "match": ["0", "it", "makes", "my", "blood", "boil", "0"],
+              "unnegated": ["it"],
+              "templates": ["What part of it gets to you the most?"]
+            }
+          ],
           "rank": 34,
-          "keywords": ["furious", "livid", "enraged", "fuming", "seething"],
+          "keywords": ["enraged", "fuming", "seething"],
           "tags": ["ANGER_WORD"],
           "patterns": [
             {
               "match": ["0", "{anger:/ANGER_WORD}", "at", "{target}", "0"],
               "unnegated": ["anger"],
               "templates": [
-                "What would you say to {target} if there were no consequences?",
-                "How long have you been {anger} at {target}?",
-                "Does {target} know how {anger} it makes you?"
+                "What would you say if {target:flip} could hear you?",
+                "How long have you felt {anger} about what happened?",
+                "Have you been able to say how {anger} it makes you?"
               ],
               "remember": "{target}",
               "context": { "topic": "anger", "expect": ["YES", "NO"] }
@@ -815,7 +905,7 @@
           "tags": ["NO_CONTACT"],
           "patterns": [
             {
-              "match": ["0", "no", "one", "to", "talk", "0"],
+              "match": ["0", "no-one", "to", "talk", "0"],
               "templates": [
                 "Who used to be the one you talked to?",
                 "What would you say if someone were here now?",
@@ -824,11 +914,19 @@
               "context": { "topic": "loneliness", "expect": ["YES", "NO"] }
             },
             {
-              "match": ["0", "no", "one", "0"],
+              "match": ["0", "no-one", "0"],
               "templates": [
                 "No one at all?",
                 "There is no one you could think of calling?",
                 "Who did that space in your life used to belong to?"
+              ],
+              "context": { "topic": "loneliness", "expect": ["YES", "NO"] }
+            },
+            {
+              "match": ["0", "do", "not", "have", "{isolated:/NO_ONE}", "0"],
+              "templates": [
+                "Who do you wish you could talk to?",
+                "What is it like to go through that on your own?"
               ],
               "context": { "topic": "loneliness", "expect": ["YES", "NO"] }
             },
@@ -853,6 +951,7 @@
       "topic": "substances",
       "rank": 30,
       "examples": [
+        "i keep reaching for the bottle even when i mean to cut back",
         "i have been drinking every night",
         "i smoke to take the edge off",
         "i got wasted again last weekend",
@@ -861,6 +960,13 @@
       "rules": [
         {
           "id": "SUBSTANCES.use",
+          "semanticPatterns": [
+            {
+              "match": ["0", "i", "keep", "reaching", "for", "the", "bottle", "0"],
+              "unnegated": ["i"],
+              "templates": ["What tends to happen before you reach for it?"]
+            }
+          ],
           "rank": 34,
           "tags": ["SUBSTANCES"],
           "patterns": [
@@ -885,6 +991,7 @@
       "topic": "smalltalk",
       "rank": 20,
       "examples": [
+        "i am pleased to meet you and wanted to say hello",
         "hello there",
         "the weather is nice today",
         "how are you",
@@ -893,6 +1000,13 @@
       "rules": [
         {
           "id": "SMALL_TALK.greeting",
+          "semanticPatterns": [
+            {
+              "match": ["0", "pleased", "to", "meet", "you", "0"],
+              "unnegated": ["pleased"],
+              "templates": ["How do you do. What is on your mind?"]
+            }
+          ],
           "rank": 24,
           "tags": ["GREETING"],
           "patterns": [
@@ -1029,8 +1143,8 @@
             {
               "match": ["0", "/WANT", "{want_thing}", "0"],
               "templates": [
-                "What would it mean to you if you had {want_thing}?",
-                "Tell me more about wanting {want_thing}."
+                "You want {want_thing:flipObject}. What would change for you?",
+                "Tell me more about what you want."
               ],
               "context": { "topic": "general" }
             }

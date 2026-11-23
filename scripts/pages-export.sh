@@ -64,8 +64,19 @@ copy --exclude='modes/rewrite/test' --exclude='modes/port/test' \
 # its bundled lexical index wherever a piece is missing.
 copy \
   --exclude='modes/extended/test' \
+  --exclude='modes/extended/vendor/build.mjs' \
+  --exclude='modes/extended/vendor/model' \
+  --exclude='modes/extended/vendor/deps/ort.webgpu.bundle.min.mjs' \
+  --exclude='modes/extended/vendor/ort/*.mjs' \
   --exclude='modes/extended/vendor/ort/*.jsep.*' \
   modes/extended
+MODEL_FILES=$(cd "$SRC" && node -p '
+  const m = require("./modes/extended/vendor/manifest.json").model;
+  Object.keys(m.files).map((name) => `modes/extended/vendor/model/${m.source}/resolve/${m.revision}/${name}`).join("\n")
+')
+for file in $MODEL_FILES; do
+  if [ -f "$SRC/$file" ]; then copy "$file"; fi
+done
 
 # Mode 3: the worker, both versioned packed images and the card deck. The raw
 # DASD containers stay home.
@@ -76,7 +87,7 @@ copy \
   modes/emulate/cmd.cbn \
   modes/emulate/src \
   modes/emulate/unpack.js \
-  modes/emulate/bridge.mjs
+  modes/emulate/pacing.js
 
 # Archive tapes the page reads.
 copy data/scripts shared
@@ -85,7 +96,7 @@ copy data/scripts shared
 # (__pycache__), the build script and dev artefacts (demo, specimens,
 # strike lab, lockfiles) stay home.
 copy $(cd "$SRC" && find font -maxdepth 1 -type f \( \
-  -name '*.woff2' -o -name '*.ttf' -o -name 'font.css' \
+  -name '*.woff2' -o -name 'font.css' \
   -o -name 'manifest.json' -o -name 'SOURCES.md' \) | sort)
 
 echo "Staged $DEST"

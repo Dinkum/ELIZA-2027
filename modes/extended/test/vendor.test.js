@@ -74,10 +74,10 @@ test('the worker fetches weights from its own origin, never the internet', () =>
   // pointed at our own origin instead, and the guarantee becomes "the host can
   // never be a remote one".
   const worker = readFileSync(new URL('../encoder.worker.js', import.meta.url), 'utf8');
-  const host = worker.match(/const ORIGIN = new URL\(\s*'([^']+)'/);
-  assert.ok(host, 'no ORIGIN constant in encoder.worker.js');
-  assert.equal(host[1], '/', 'ORIGIN must be this server, not a remote host');
-  assert.match(worker, /env\.remoteHost = ORIGIN/, 'remoteHost must be this origin');
+  const host = worker.match(/const MODEL_BASE = new URL\(\s*'([^']+)'/);
+  assert.ok(host, 'no MODEL_BASE constant in encoder.worker.js');
+  assert.equal(host[1], './');
+  assert.match(worker, /env\.remoteHost = MODEL_BASE/, 'remoteHost must be this origin');
   // Match an actual assignment, not the word: the comments explain why a remote
   // host is not used, so a bare substring match would fail on its own prose.
   assert.doesNotMatch(
@@ -129,10 +129,9 @@ test('the worker\'s weight template resolves to real files', () => {
   const filled = template[1]
     .replace('{model}', manifest.model.source)
     .replace('${REVISION}', revision[1]);
-  // The template is relative to the page origin, which is the repo root. This
-  // file sits three levels down (modes/extended/test/), so the base has to be
-  // resolved from the root rather than from here.
-  const base = new URL(`../../../${filled}`, import.meta.url);
+  const base = new URL(filled, new URL('../encoder.worker.js', import.meta.url));
+  const subpath = new URL(filled, 'https://example.test/ELIZA-2027/modes/extended/encoder.worker.js');
+  assert.ok(subpath.pathname.startsWith('/ELIZA-2027/modes/extended/vendor/model/'));
 
   for (const name of ['config.json', 'tokenizer.json', 'tokenizer_config.json', 'onnx/model_quantized.onnx']) {
     assert.doesNotThrow(
@@ -207,10 +206,12 @@ test('the runtime rejects vectors generated from another script', () => {
 
 test('the manifest records a hash for every vendored file', { skip: !hasVectors && 'run `npm run vendor`' }, () => {
   for (const [name, digest] of Object.entries(manifest.model.files)) {
-    assert.match(digest, /^[0-9a-f]{64}$/, `${name} has no sha256 in the manifest`);
+    const asset = new URL(`../vendor/model/${manifest.model.source}/resolve/${manifest.model.revision}/${name}`, import.meta.url);
+    assert.equal(createHash('sha256').update(readFileSync(asset)).digest('hex'), digest, name);
   }
   for (const [name, digest] of Object.entries(manifest.ort.files)) {
-    assert.match(digest, /^[0-9a-f]{64}$/, `${name} has no sha256 in the manifest`);
+    const asset = new URL(`../vendor/ort/${name}`, import.meta.url);
+    assert.equal(createHash('sha256').update(readFileSync(asset)).digest('hex'), digest, name);
   }
   assert.match(manifest.dependencies['ort.webgpu.bundle.min.js'], /^[0-9a-f]{64}$/);
   for (const [name, digest] of Object.entries(manifest.dependencies['onnxruntime-common'])) {

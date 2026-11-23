@@ -265,29 +265,29 @@ export class Channel {
 
   /** Fetch the next command word and set up the transfer it describes. */
   loadCommand() {
-    const address = (this.clr & ADDR) | this.ccore;
-    const hi = this.core.hi[address];
-    const lo = this.core.lo[address];
-    this.clr = (this.clr + 1) & ADDR;
+    for (let commands = 0; commands < CORE_SIZE; commands++) {
+      const address = (this.clr & ADDR) | this.ccore;
+      const hi = this.core.hi[address];
+      const lo = this.core.lo[address];
+      this.clr = (this.clr + 1) & ADDR;
 
-    this.cop = (hi >>> 15) | ((lo & 0o200000) ? NON_TRANSMIT : 0);
-    this.cwr = hi & ADDR;
-    this.car = lo & ADDR;
-    this.dcore = (lo & 0o100000) ? this.bcoreBit : 0;
+      this.cop = (hi >>> 15) | ((lo & 0o200000) ? NON_TRANSMIT : 0);
+      this.cwr = hi & ADDR;
+      this.car = lo & ADDR;
+      this.dcore = (lo & 0o100000) ? this.bcoreBit : 0;
 
-    if (lo & 0o400000) {            // indirect: the address names the address
-      const pointer = (this.car & ADDR) | this.dcore;
-      this.car = this.core.lo[pointer] & ADDR;
-    }
-
-    if ((this.cop & 7) === TCH) {
-      // Transfer control: not a transfer at all, just a jump in the list.
+      if (lo & 0o400000) {
+        const pointer = (this.car & ADDR) | this.dcore;
+        this.car = this.core.lo[pointer] & ADDR;
+      }
+      if ((this.cop & 7) !== TCH) {
+        this.state = RUN;
+        return;
+      }
       this.clr = this.car;
-      this.loadCommand();
-      return;
     }
-
-    this.state = RUN;
+    this.redundancy = true;
+    this.park();
   }
 
   /**

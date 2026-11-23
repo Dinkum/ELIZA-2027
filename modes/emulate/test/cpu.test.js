@@ -12,8 +12,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { run, ac, acFull, mq, word } from './machine.js';
+import { build, run, ac, acFull, mq, word } from './machine.js';
 import { octal } from '../src/word.js';
+import { TRAP } from '../src/cpu.js';
 
 test('add and store', () => {
   const { cpu, core } = run(`
@@ -312,6 +313,23 @@ test('store instructions touch only their own field', () => {
   `);
   // STA replaces the address field, STD the decrement; the rest survives.
   assert.equal(word(core, 0o151), '700007700077');
+});
+
+test('an operand protection fault stops a store before changing memory', () => {
+  const { core, cpu } = build(`
+         ORG   27
+         TRA   110
+         ORG   100
+         STA   FIELD
+  FIELD  OCT   000000123456
+  `);
+  cpu.ic = cpu.progBase = cpu.progLimit = 100;
+  cpu.userMode = cpu.protMode = true;
+  cpu.acLo = 1;
+  cpu.step();
+  assert.equal(word(core, 101), '000000123456');
+  assert.equal(cpu.ic, 110);
+  assert.equal(core.lo[TRAP.PROTECTION], 101);
 });
 
 test('sense lights and switches', () => {

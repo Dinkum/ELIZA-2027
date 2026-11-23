@@ -1,5 +1,3 @@
-@import url('../font/font.css?v=d29dc5d55e00');
-
 /*
  * A sheet of continuous-form paper in an IBM 1052 Printer-Keyboard.
  *
@@ -281,7 +279,18 @@ body {
   padding: 0;
   border: 0;
   opacity: 0;
+  font-size: 16px;
   pointer-events: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .sound {

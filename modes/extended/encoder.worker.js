@@ -70,7 +70,7 @@ const MODEL = 'Xenova/all-MiniLM-L6-v2';
 const REVISION = '751bff37182d3f1213fa05d7196b954e230abad9';
 const DTYPE = 'q8';
 
-const ORIGIN = new URL('/', import.meta.url).href;
+const MODEL_BASE = new URL('./', import.meta.url).href;
 
 /**
  * The revision is written into the template rather than left as `{revision}`.
@@ -81,19 +81,27 @@ const ORIGIN = new URL('/', import.meta.url).href;
  * the pinned commit. Writing the pin into the template removes that dependency
  * and keeps the single source of truth in REVISION above.
  */
-const MODEL_PATH_TEMPLATE = `modes/extended/vendor/model/{model}/resolve/${REVISION}/`;
+const MODEL_PATH_TEMPLATE = `vendor/model/{model}/resolve/${REVISION}/`;
 
-let extractor = null;
+let loading = null;
 
-async function load(device) {
-  if (extractor) return extractor;
+function load(device) {
+  if (!loading) {
+    loading = createExtractor(device).catch((error) => {
+      loading = null;
+      throw error;
+    });
+  }
+  return loading;
+}
 
+async function createExtractor(device) {
   // The weights are served from THIS origin. `remoteHost` is our own server,
   // not huggingface.co, so allowing "remote" models still means nothing leaves
   // the machine. See the note above for why the local path is not used.
   env.allowLocalModels = false;
   env.allowRemoteModels = true;
-  env.remoteHost = ORIGIN;
+  env.remoteHost = MODEL_BASE;
   env.remotePathTemplate = MODEL_PATH_TEMPLATE;
   // No browser cache. These files are already local, so a cache entry can only
   // ever serve a stale copy of something we have on disk — and a stale
@@ -102,12 +110,11 @@ async function load(device) {
   env.useBrowserCache = false;
   env.backends.onnx.wasm.wasmPaths = WASM_PATHS;
 
-  extractor = await pipeline('feature-extraction', MODEL, {
+  return pipeline('feature-extraction', MODEL, {
     device,
     dtype: DTYPE,
     revision: REVISION,
   });
-  return extractor;
 }
 
 /**
@@ -118,10 +125,8 @@ async function embed(input, device) {
   const model = await load(device);
   const output = await model(input, { pooling: 'mean', normalize: true });
   const [, width] = output.dims;
-  const flat = Array.from(output.data);
-  const vectors = [];
-  for (let i = 0; i < flat.length; i += width) vectors.push(flat.slice(i, i + width));
-  return { vectors, width };
+  const flat = Float32Array.from(output.data);
+  return { flat, width };
 }
 
 self.onmessage = async (event) => {
@@ -137,8 +142,8 @@ self.onmessage = async (event) => {
       return;
     }
     if (type === 'embed') {
-      const { vectors, width } = await embed(texts ?? text, device);
-      self.postMessage({ id, ok: true, vectors, width });
+      const { flat, width } = await embed(texts ?? text, device);
+      self.postMessage({ id, ok: true, flat, width }, [flat.buffer]);
       return;
     }
     self.postMessage({ id, ok: false, error: `unknown message type: ${type}` });

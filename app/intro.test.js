@@ -69,7 +69,8 @@ test('the line is offered only where the browser can run the machine', async () 
   assert.equal(await liveLineAvailable(async () => pack(false)), false);
   // A host that answers everything with its own page is not a disk image either.
   assert.equal(await liveLineAvailable(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) })), false);
-  assert.equal(await liveLineAvailable(boom), false);
-  assert.equal(await liveLineAvailable(undefined), false);
+  assert.equal(await liveLineAvailable(boom), null);
+  assert.equal(await liveLineAvailable(async () => ({ ok: false, status: 503 })), null);
+  assert.equal(await liveLineAvailable(null), false);
   assert.match(LINE_DOWN, /^This browser/);
 });

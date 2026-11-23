@@ -46,12 +46,22 @@ export const CELL_CHARACTERS = 6;
  * sublist's address. The addresses here are not the 7094's, so that one choice
  * is deterministic but is not the choice the original would have made.
  */
-let nucell = 0;
+let cellAddresses = { next: 0 };
+
+export function withSlipCells(addresses, run) {
+  const previous = cellAddresses;
+  cellAddresses = addresses;
+  try {
+    return run();
+  } finally {
+    cellAddresses = previous;
+  }
+}
 
 class Cell {
   constructor(id, datum) {
-    nucell += 2; // a SLIP cell is two words
-    this.addr = nucell;
+    cellAddresses.next += 2; // a SLIP cell is two words
+    this.addr = cellAddresses.next;
     this.id = id;
     this.datum = datum;
     this.left = this;

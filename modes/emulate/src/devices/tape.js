@@ -167,28 +167,31 @@ export class TapeUnit {
 /** Split a .tap image into records. A tape mark comes back as null. */
 export function parseTap(bytes) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  // The other tape format in the CTSS kit is s709's native "p7b": every
-  // record begins with a byte whose high bit is set, and a 0217 byte is a
-  // tape mark. SIMH images begin with a 32-bit little-endian length, whose
-  // first byte is never high-bit set in a plausible image.
-  if (data.length && (data[0] & 0o200)) return parseP7b(data);
+  const simh = parseSimh(data);
+  if (simh) return simh;
+  if (data[0] & 0o200) return parseP7b(data);
+  throw new Error('Invalid SIMH tape record');
+}
+
+function parseSimh(data) {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const records = [];
   let offset = 0;
   while (offset + 4 <= data.length) {
-    const length = view.getUint32(offset, true);
+    const marker = view.getUint32(offset, true);
     offset += 4;
-    if (length === END_OF_MEDIUM) break;
-    if (length === 0) {
+    if (marker === END_OF_MEDIUM) return records;
+    if (marker === 0) {
       records.push(null);
       continue;
     }
-    const padded = length + (length & 1);
+    const length = marker & 0x00ffffff;
+    const tail = offset + length + (length & 1);
+    if ((marker & 0x7f000000) !== 0 || tail + 4 > data.length || view.getUint32(tail, true) !== marker) return null;
     records.push(data.subarray(offset, offset + length));
-    offset += padded;
-    offset += 4;                            // the trailing length word
+    offset = tail + 4;
   }
-  return records;
+  return offset === data.length ? records : null;
 }
 
 /**

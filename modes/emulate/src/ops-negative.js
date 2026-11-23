@@ -186,8 +186,7 @@ export function executeNegative(cpu) {
       break;
 
     case 0o100603:   // DST — double store
-      cpu.store(y, cpu.acWordHi(), cpu.acLo);
-      cpu.store((y + 1) & ADDR, cpu.mqHi, cpu.mqLo);
+      cpu.storePair(y, cpu.acWordHi(), cpu.acLo, cpu.mqHi, cpu.mqLo);
       break;
 
     case 0o100620:   // SLQ — store left half MQ

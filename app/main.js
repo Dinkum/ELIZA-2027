@@ -11,14 +11,14 @@
  * when the engine starts talking, and the mode and version are never printed.
  */
 
-import { Typewriter } from './typewriter.js?v=56ba75bcf382';
+import { Typewriter } from './typewriter.js?v=712b79ea9ec2';
 import { Sound } from './sound.js';
 import { acceptCharacter } from './input.js';
-import { LiveLine } from './live.js?v=7f3799639c78';
+import { LiveLine } from './live.js?v=d526285261de';
 import { CtssOutput, logInToCtss } from './ctss-login.js';
 import {
   MODES, VERSIONS, LINE_DOWN, needsVersion, previousScreen, liveLineAvailable,
-} from './intro.js?v=6a8bbea53bbe';
+} from './intro.js?v=4f3a838887c6';
 
 /**
  * The engines and their tapes, loaded on first use.
@@ -31,10 +31,10 @@ import {
  */
 const ENGINES = {
   rewrite: () => import('../modes/rewrite/eliza.js'),
-  port: () => import('../modes/port/eliza.js?v=1e3713080283'),
-  port1966: () => import('../modes/port/eliza-1966.js?v=2007d80b9177'),
-  extended: () => import('../modes/extended/engine.js?v=21b8b65de185'),
-  encoder: () => import('../modes/extended/encoder.js?v=16d8ecd1bf83'),
+  port: () => import('../modes/port/eliza.js'),
+  port1966: () => import('../modes/port/eliza-1966.js?v=a8d4ea40121f'),
+  extended: () => import('../modes/extended/engine.js?v=1f0b482b0715'),
+  encoder: () => import('../modes/extended/encoder.js?v=9fcda4c84c96'),
   semantics: () => import('../modes/extended/semantics.js'),
 };
 
@@ -51,7 +51,7 @@ function prefetchEngines() {
 }
 
 /** Extended ships its own richer script rather than reading an archive tape. */
-const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=d6c140024c22', import.meta.url);
+const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=b61d33232ddd', import.meta.url);
 
 /**
  * The family example vectors, emitted by `npm run vendor` beside the model.
@@ -60,7 +60,9 @@ const EXTENDED_SCRIPT_URL = new URL('../modes/extended/script.json?v=d6c140024c2
  * worker instead. Either way the vectors must come from the model the worker
  * actually loaded, which is checked below before they are used.
  */
-const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=6811e8a58ee8', import.meta.url);
+const EXTENDED_VECTORS_URL = new URL('../modes/extended/vendor/families.vectors.json?v=97522b04b3ee', import.meta.url);
+
+let encoderInitialization = null;
 
 /**
  * The two archive tapes, by version key.
@@ -75,8 +77,8 @@ const TAPES = {
 
 /** Each machine image has its own compiled ELIZA and script 100. */
 const MACHINE_PACKS = {
-  '1965b': new URL('../modes/emulate/ctss-dasd.pack', import.meta.url),
-  '1966': new URL('../modes/emulate/ctss-1966-dasd.pack', import.meta.url),
+  '1965b': new URL('../modes/emulate/ctss-dasd.pack?v=7a9554beb1da', import.meta.url),
+  '1966': new URL('../modes/emulate/ctss-1966-dasd.pack?v=5c7e997967d4', import.meta.url),
 };
 
 const form = document.getElementById('form');
@@ -90,6 +92,7 @@ const portGuide = document.getElementById('port-guide');
 const portGuideDismiss = document.getElementById('port-guide-dismiss');
 const intro = document.getElementById('intro');
 const note = document.getElementById('modes-note');
+const announcement = document.getElementById('announcement');
 
 const screens = {
   modes: document.getElementById('screen-modes'),
@@ -124,6 +127,8 @@ let onBack = null;
  * check rather than printing into a sheet that is no longer its own.
  */
 let generation = 0;
+let bellTimer;
+let composing = false;
 
 /** What the machine is waiting for: null, or a line of text. */
 let waiting = null;
@@ -143,7 +148,8 @@ function newPrinter(target) {
     onBell: () => {
       sound.bell();
       form.classList.add('bell');
-      setTimeout(() => form.classList.remove('bell'), 220);
+      clearTimeout(bellTimer);
+      bellTimer = setTimeout(() => form.classList.remove('bell'), 220);
     },
     onStrike: (char) => sound.strike(char),
   });
@@ -201,7 +207,7 @@ function showScreen(name) {
   intro.hidden = false;
   form.hidden = true;
   for (const [id, element] of Object.entries(screens)) element.hidden = id !== name;
-  backButton.hidden = previousScreen(name) === null;
+  backButton.hidden = name === 'modes';
 }
 
 /** Hand the desk over to the 1050: a blank sheet, and BACK to give it up. */
@@ -302,46 +308,39 @@ function lineDown() {
  * mode had one, and to the modes otherwise.
  */
 async function main() {
-  // The desk is drawn before anything is fetched. Mode 3 is offered while its
-  // images are probed, and dimmed if the probe comes back empty; a pick made
-  // before then waits for the answer on the version screen.
-  renderRows('modes', MODES);
-  const probe = Promise.all(
-    Object.entries(MACHINE_PACKS).map(async ([key, url]) => [key, await liveLineAvailable(fetch, url)]),
-  ).then(Object.fromEntries);
-  probe.then((availability) => {
-    if (Object.values(availability).some(Boolean)) return;
-    const live = lists.modes.querySelector('button.row[data-key="live"]');
-    if (live) live.disabled = true;
-    note.textContent = LINE_DOWN;
-    note.hidden = false;
-  });
+  const workersAvailable = typeof Worker === 'function';
+  renderRows('modes', MODES, { unavailable: workersAvailable ? [] : ['live'] });
+  if (!workersAvailable) lineDown();
   prefetchEngines();
 
   let screen = 'modes';
   let mode = null;
   let version = null;
+  let line = null;
 
   for (;;) {
     if (screen === 'modes') {
       showScreen('modes');
       mode = await askRows('modes', MODES);
       if (!mode) continue;                    // nothing behind the first screen
+      if (workersAvailable) note.hidden = true;
       screen = needsVersion(mode) ? 'version' : 'paper';
       continue;
     }
 
     if (screen === 'version') {
-      const availability = mode.kind === 'live' ? await probe : {};
-      if (mode.kind === 'live' && !Object.values(availability).some(Boolean)) {
-        screen = 'modes';
-        continue;
+      renderRows('version', VERSIONS);
+      if (mode.kind === 'live') {
+        for (const row of lists.version.querySelectorAll('button.row')) {
+          liveLineAvailable(fetch, MACHINE_PACKS[row.dataset.key]).then((available) => {
+            if (available === false && row.isConnected) {
+              const focused = document.activeElement === row;
+              row.disabled = true;
+              if (focused) lists.version.querySelector('button.row:not(:disabled)')?.focus();
+            }
+          });
+        }
       }
-      renderRows('version', VERSIONS, {
-        unavailable: mode.kind === 'live'
-          ? VERSIONS.filter((choice) => !availability[choice.key]).map((choice) => choice.key)
-          : [],
-      });
       showScreen('version');
       version = await askRows('version', VERSIONS);
       if (!version) {
@@ -354,11 +353,14 @@ async function main() {
 
     if (screen === 'loader') {
       showScreen('loader');
-      screen = await loadMachine(mode, version);
+      const loaded = await loadMachine(version);
+      line = loaded.line;
+      screen = loaded.screen;
       continue;
     }
 
-    screen = await session(mode, version);
+    screen = await session(mode, version, line);
+    line = null;
   }
 }
 
@@ -368,12 +370,18 @@ async function main() {
  * The worker does the work; this only draws what it reports. A failure is not
  * a dead end: the desk says why and goes back to the modes.
  */
-async function loadMachine(mode, version) {
+async function loadMachine(version) {
   loaderLine.textContent = 'Bringing the machine up.';
   loaderDetail.textContent = 'Loading the emulator worker.';
   setLoaderProgress(2, 'Loading the emulator worker.');
 
   const line = new LiveLine();
+  let cancelled = false;
+  onBack = () => {
+    cancelled = true;
+    line.close();
+  };
+  backButton.focus();
   const connected = await line.connect({
     onProgress: (progress) => {
       if (progress.stage === 'fetch') {
@@ -398,28 +406,23 @@ async function loadMachine(mode, version) {
       showLoaderError(message);
     },
   });
-  if (!connected) {
-    showLoaderError(line.error ?? 'The machine worker could not be loaded.');
-    await new Promise((done) => setTimeout(done, 1800));
-    return 'modes';
+  let booted = false;
+  if (connected && !cancelled) {
+    loaderDetail.textContent = 'Worker online. Fetching the packed image.';
+    setLoaderProgress(10, 'Worker online.');
+    booted = await line.boot(
+      MACHINE_PACKS[version.key],
+      new URL('../modes/emulate/cmd.cbn?v=ce5723f887c0', import.meta.url),
+    );
   }
 
-  loaderDetail.textContent = 'Worker online. Fetching the packed image.';
-  setLoaderProgress(10, 'Worker online.');
-
-  const booted = await line.boot(
-    MACHINE_PACKS[version.key],
-    new URL('../modes/emulate/cmd.cbn', import.meta.url),
-  );
-  if (!booted) {
-    showLoaderError(line.error ?? 'The packed image did not arrive.');
-    await new Promise((done) => setTimeout(done, 1800));
-    return 'modes';
-  }
-
-  // The paper takes over from here; the line is already open.
-  mode.line = line;
-  return 'paper';
+  onBack = null;
+  if (booted && !cancelled) return { screen: 'paper', line };
+  line.close();
+  if (cancelled) return { screen: 'version', line: null };
+  note.textContent = `The emulator could not start. ${line.error ?? 'Try again.'}`;
+  note.hidden = false;
+  return { screen: 'modes', line: null };
 }
 
 function setLoaderProgress(value, text) {
@@ -447,13 +450,16 @@ function showLoaderError(message) {
  *
  * @returns {Promise<'modes'|'version'>} the screen BACK unwinds to
  */
-async function session(mode, version) {
+async function session(mode, version, line) {
   const mine = ++generation;
 
   const next = sheet.cloneNode(false);
   sheet.replaceWith(next);
   sheet = next;
-  printer = newPrinter(sheet);
+  const sessionPrinter = newPrinter(sheet);
+  const lifetime = new AbortController();
+  printer = sessionPrinter;
+  announcement.textContent = '';
   showPaper();
   keepFocus();
 
@@ -461,31 +467,39 @@ async function session(mode, version) {
   const given = new Promise((resolve) => { giveUp = resolve; });
   onBack = () => giveUp('back');
 
-  const line = mode.kind === 'live' ? mode.line : null;
   const answer = mode.kind === 'live'
-    ? converseLive(line, mine)
-    : converseScript(mode, version, mine);
+    ? converseLive(line, mine, sessionPrinter, lifetime.signal)
+    : converseScript(mode, version, mine, sessionPrinter);
 
-  let how = await Promise.race([given, answer]);
-
-  // A real hangup leaves its last line on the paper. The operator chooses
-  // BACK; the app does not silently redial or erase the evidence.
-  if (how === 'hangup') how = await given;
-
-  generation += 1;             // the abandoned loop stops at its next check
-  cancelWait();
-  liveGuide.hidden = true;
-  portGuide.hidden = true;
-  line?.close();
-  if (mode.kind === 'live') mode.line = null;
-  onBack = null;
-
-  return how === 'down' ? lineDown() : previousScreen('paper', mode);
+  try {
+    let how = await Promise.race([given, answer]);
+    if (how === 'hangup') how = await given;
+    return how === 'down' ? lineDown() : previousScreen('paper', mode);
+  } catch (error) {
+    console.error(error);
+    note.textContent = 'The session stopped. Choose a mode to try again.';
+    note.hidden = false;
+    return 'modes';
+  } finally {
+    generation += 1;
+    lifetime.abort();
+    cancelWait();
+    sessionPrinter.cancel();
+    clearTimeout(bellTimer);
+    form.classList.remove('bell');
+    liveGuide.hidden = true;
+    portGuide.hidden = true;
+    keyboard.blur();
+    keyboard.value = '';
+    composing = false;
+    line?.close();
+    onBack = null;
+  }
 }
 
 /** Run one turn of a scripted conversation at a time until BACK. */
-async function converseScript(mode, version, mine) {
-  const session = await open(mode, version);
+async function converseScript(mode, version, mine, printer) {
+  const session = await open(mode, version, mine);
   if (mine !== generation) return 'back';
 
   if (session.blankLineEnds && !portGuideShown) {
@@ -494,6 +508,7 @@ async function converseScript(mode, version, mine) {
   }
 
   await printer.print(session.greeting);
+  if (mine === generation) announce(session.greeting);
   await printer.newline(2);
 
   if (session.status) {
@@ -509,6 +524,7 @@ async function converseScript(mode, version, mine) {
       await printer.print(session.prompt);
       await printer.newline();
     }
+    if (mine !== generation) return 'back';
 
     const text = await readText(session.blankLineEnds, false, session.questionDeletes);
     if (mine !== generation || text === null) return 'back';
@@ -517,12 +533,17 @@ async function converseScript(mode, version, mine) {
     try {
       // Awaited: the rewrite and port answer synchronously, but extended may
       // need the encoder for this turn, so every session is awaited alike.
-      await printer.print(await session.respond(text));
+      const reply = await session.respond(text);
+      if (mine !== generation) return 'back';
+      await printer.print(reply);
+      if (mine === generation) announce(reply);
     } catch (error) {
       if (!session.isFault?.(error)) throw error;
+      if (mine !== generation) return 'back';
       await printer.print(`SLIP FAULT . ${error.message}`);
       await printer.newline();
       await printer.print(session.faultText ?? 'THE PROGRAM STOPPED . SEE REFERENCES .');
+      if (mine === generation) announce(`SLIP fault. ${error.message}`);
     }
     await printer.newline(2);
   }
@@ -543,13 +564,23 @@ async function converseScript(mode, version, mine) {
  * does not answer here is one that went away, and the desk says so rather than
  * leaving the paper hanging.
  */
-async function converseLive(line, mine) {
+async function converseLive(line, mine, printer, signal) {
   if (!line || line.state === 'closed') return 'down';
   let lastPrint = Promise.resolve();
+  let pendingAnnouncement = '';
   const output = new CtssOutput();
+  signal.addEventListener('abort', () => output.close(), { once: true });
   line.onPrint = (text) => {
     output.push(text);
-    lastPrint = printMachine(text);
+    const formatted = String(text).replace(/\r/g, '');
+    pendingAnnouncement += formatted;
+    const lastBreak = pendingAnnouncement.lastIndexOf('\n');
+    const complete = pendingAnnouncement.slice(0, lastBreak + 1);
+    pendingAnnouncement = pendingAnnouncement.slice(lastBreak + 1);
+    lastPrint = printer.print(formatted).then(() => {
+      if (mine === generation && complete.trim()) announce(complete);
+    });
+    lastPrint.catch(() => {});
   };
   line.flushPrint();
   if (mine !== generation) return 'back';
@@ -560,23 +591,32 @@ async function converseLive(line, mine) {
   }
 
   const hungUp = new Promise((resolve) => {
-    line.onHangup = () => resolve('hangup');
+    line.onHangup = () => {
+      resolve('hangup');
+      output.close();
+    };
+    line.onError = () => {
+      resolve('down');
+      output.close();
+    };
   });
 
   const login = logInToCtss(output, async (text) => {
     // The virtual operator types at the 1052's keying speed.
     await printer.print(text);
     await printer.newline();
-    return line.send(text);
+    return mine === generation && line.send(text);
   }).then((ok) => (ok ? 'logged-in' : 'hangup'));
 
   const loginOutcome = await Promise.race([login, hungUp]);
-  if (loginOutcome === 'hangup') {
+  if (loginOutcome !== 'logged-in') {
     line.onHangup = null;
     cancelWait();
     await lastPrint;
-    return 'hangup';
+    if (mine === generation && pendingAnnouncement.trim()) announce(pendingAnnouncement);
+    return loginOutcome;
   }
+  if (mine !== generation) return 'back';
 
   const input = (async () => {
     for (;;) {
@@ -590,9 +630,10 @@ async function converseLive(line, mine) {
 
   const outcome = await Promise.race([input, hungUp]);
   line.onHangup = null;
-  if (outcome === 'hangup') {
+  if (outcome === 'hangup' || outcome === 'down') {
     cancelWait();
     await lastPrint;
+    if (mine === generation && pendingAnnouncement.trim()) announce(pendingAnnouncement);
   }
   return outcome;
 }
@@ -607,8 +648,8 @@ async function converseLive(line, mine) {
  * happening: an encoder that is loading, broken or absent must not stop the
  * conversation, and that is the one claim this module has to keep.
  */
-async function open(mode, version) {
-  if (mode.kind === 'own') return openExtended();
+async function open(mode, version, mine) {
+  if (mode.kind === 'own') return openExtended(mine);
 
   const tape = TAPES[version.key];
   const script = await tape.script();
@@ -658,10 +699,11 @@ async function open(mode, version) {
  * worker's own vectors. The worker's family vectors are computed with the same
  * embedder that will embed the queries, which is what keeps them comparable.
  */
-async function openExtended() {
+async function openExtended(mine) {
   const [{ ExtendedEliza }, { createSemantics }, response] = await Promise.all([
     ENGINES.extended(), ENGINES.semantics(), fetch(EXTENDED_SCRIPT_URL),
   ]);
+  if (!response.ok) throw new Error(`Extended script request failed (${response.status})`);
   const scriptText = await response.text();
   const script = JSON.parse(scriptText);
   const scriptSha256 = await sha256Text(scriptText);
@@ -678,20 +720,19 @@ async function openExtended() {
     encoder: null,
     modelSpace: null,
     encoderState: 'loading',
+    generation: mine,
     async respond(text) {
-      // Synchronous engine, asynchronous encoder: embed here, hand the vector
-      // in. Until the encoder is ready this is a no-op and the engine routes on
-      // literals and the hashed index, exactly as it does with no encoder.
       if (!this.encoder || !this.encoder.ready) return eliza.respond(text);
-      // The index refuses to encode a query once it holds model vectors, so the
-      // query vector has to come from the same worker.
-      const embedding = await this.encoder.embed(text);
-      if (embedding) eliza.semantics = this.modelSpace;
-      return eliza.respond(text, { embedding });
+      return eliza.respondWithSemantics(text, async (query) => {
+        const embedding = await this.encoder.embed(query);
+        if (embedding) return this.modelSpace.suggest(query, embedding);
+        if (!this.encoder.ready) setEncoderState(this, 'failed', this.encoder.error);
+        return null;
+      });
     },
   };
 
-  document.documentElement.dataset.encoderState = session.encoderState;
+  setEncoderState(session, session.encoderState);
   warmEncoder(script, eliza, session, scriptSha256);
   return session;
 }
@@ -709,9 +750,33 @@ async function sha256Text(text) {
 /** Record encoder health for diagnostics without printing it into the paper. */
 function setEncoderState(session, state, error = null) {
   session.encoderState = state;
+  if (session.generation !== generation) return;
   document.documentElement.dataset.encoderState = state;
   if (error) document.documentElement.dataset.encoderError = String(error);
   else delete document.documentElement.dataset.encoderError;
+}
+
+async function sharedEncoder(EncoderClient) {
+  if (encoderInitialization) {
+    const pending = encoderInitialization;
+    const result = await pending;
+    if (!result.client || result.client.ready) return result;
+    if (encoderInitialization === pending) encoderInitialization = null;
+  }
+  if (!encoderInitialization) {
+    const client = new EncoderClient();
+    encoderInitialization = (async () => {
+      const loaded = await client.load();
+      // Pipeline creation can succeed even when the first inference fails.
+      const probe = loaded ? await client.embed('is the doctor in') : null;
+      if (probe?.length) return { client };
+
+      client.terminate();
+      encoderInitialization = null;
+      return { state: loaded ? 'unusable' : 'unavailable', error: client.error };
+    })();
+  }
+  return encoderInitialization;
 }
 
 /**
@@ -731,20 +796,9 @@ async function warmEncoder(script, eliza, session, scriptSha256) {
     const [{ EncoderClient, familyVectors, vectorsAreCompatible }, { SemanticIndex }] = await Promise.all([
       ENGINES.encoder(), ENGINES.semantics(),
     ]);
-    const client = new EncoderClient();
-    if (!(await client.load())) {
-      setEncoderState(session, 'unavailable', client.error);
-      return;
-    }
-
-    // A resolved load is not proof the model works. This pipeline can build and
-    // then throw on its first embed, and `embed()` reports that as null rather
-    // than throwing — so without this probe the status line would claim
-    // semantic routing while the hashed index quietly answered every turn.
-    // The claim is earned by actually embedding something.
-    const probe = await client.embed('is the doctor in');
-    if (!probe || probe.length === 0) {
-      setEncoderState(session, 'unusable', client.error);
+    const { client, state, error } = await sharedEncoder(EncoderClient);
+    if (!client) {
+      setEncoderState(session, state, error);
       return;
     }
 
@@ -755,16 +809,7 @@ async function warmEncoder(script, eliza, session, scriptSha256) {
     // still looks like a score.
     const vectors = (await vendoredVectors(client, scriptSha256, vectorsAreCompatible))
       ?? (await familyVectors(script, (texts) => client.embedMany(texts)));
-    const index = new SemanticIndex(script, { vectors });
-    session.modelSpace = {
-      suggest(text, words, embedding) {
-        try {
-          return index.suggest(text, embedding);
-        } catch {
-          return [];
-        }
-      },
-    };
+    session.modelSpace = new SemanticIndex(script, { vectors });
     session.encoder = client;
     setEncoderState(session, 'ready');
   } catch (error) {
@@ -789,14 +834,10 @@ async function vendoredVectors(client, scriptSha256, vectorsAreCompatible) {
 }
 
 /**
- * The machine's characters, printed as they arrive.
- *
- * A carriage return is the line's own line discipline, not something to strike
- * on paper; a newline in the text is what the paper's typewriter turns into a
- * carrier return, so the machine's own line ends become the paper's.
+ * Announce a complete reply or console line to assistive technology.
  */
-function printMachine(text) {
-  return printer.print(String(text).replace(/\r/g, ''));
+function announce(text) {
+  announcement.textContent = text;
 }
 
 // --- the paper ------------------------------------------------------------
@@ -810,12 +851,54 @@ const keepFocus = () => {
   if (!form.hidden) keyboard.focus({ preventScroll: true });
 };
 
+form.addEventListener('click', (event) => {
+  if (!event.target.closest('a, button') && !window.getSelection()?.toString()) keepFocus();
+});
+
 keyboard.addEventListener('keydown', (event) => {
-  if (event.metaKey || event.ctrlKey || event.altKey) return;
-  if (event.key !== 'Enter' && event.key !== 'Backspace' && event.key.length !== 1) return;
+  if (event.metaKey || event.ctrlKey || event.altKey || composing || event.isComposing || event.keyCode === 229) return;
+  if (event.repeat && event.key.length === 1) {
+    event.preventDefault();
+    return;
+  }
+  if (event.key !== 'Enter' && event.key !== 'Backspace') return;
   event.preventDefault();
   if (event.repeat) return;
   press(event.key);
+});
+
+keyboard.addEventListener('beforeinput', (event) => {
+  if (composing || event.isComposing) return;
+  if (event.inputType === 'deleteContentBackward') {
+    event.preventDefault();
+    press('Backspace');
+  } else if (event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph') {
+    event.preventDefault();
+    press('Enter');
+  }
+});
+
+function echoInput() {
+  const text = keyboard.value;
+  keyboard.value = '';
+  if (!waiting || printer.busy || !text) return;
+
+  let strikes = '';
+  for (const char of text.replace(/[\r\n\t]+/g, ' ')) {
+    if (!acceptCharacter(waiting, char)) continue;
+    const upper = char.toUpperCase();
+    strikes += [...upper].length === 1 ? upper : char;
+  }
+  if (strikes) printer.echo(strikes);
+}
+
+keyboard.addEventListener('input', (event) => {
+  if (!composing && !event.isComposing) echoInput();
+});
+keyboard.addEventListener('compositionstart', () => { composing = true; });
+keyboard.addEventListener('compositionend', () => {
+  composing = false;
+  queueMicrotask(echoInput);
 });
 
 /** The interlocked keyboard accepts one key only when the 1052 is ready. */
@@ -829,12 +912,9 @@ function apply(key) {
     submitLine();
   } else if (key === 'Backspace') {
     if (waiting.text.length > 0) {
-      waiting.text = waiting.text.slice(0, -1);
+      waiting.text = Array.from(waiting.text).slice(0, -1).join('');
       printer.rubout();
     }
-  } else if (key.length === 1) {
-    if (!acceptCharacter(waiting, key)) return;
-    printer.echo(key.toUpperCase());
   }
 }
 

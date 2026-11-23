@@ -43,9 +43,8 @@
   "ort": {
     "source": "onnxruntime-web@1.26.0-dev.20260416-b7804b056c",
     "files": {
-      "ort-wasm-simd-threaded.asyncify.mjs": "5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9",
-      "ort-wasm-simd-threaded.asyncify.wasm": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786",
-      "ort-wasm-simd-threaded.asyncify.js": "5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9"
+      "ort-wasm-simd-threaded.asyncify.js": "5959c6733039619c9af710d8e1bae8d6e84402787990637be987c2b1bd6c5fa9",
+      "ort-wasm-simd-threaded.asyncify.wasm": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786"
     }
   },
   "model": {
@@ -61,7 +60,7 @@
   },
   "vectors": {
     "file": "families.vectors.json",
-    "scriptSha256": "d6c140024c228bc62fd3e2b39ee74a0420bb4a29187b595dae4ecea61cec8b58",
+    "scriptSha256": "b61d33232ddd32350d60b7d2e7693562e735e232ad147b95b1bbb76e1ea46031",
     "families": 15,
     "dimensions": 384
   }

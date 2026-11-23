@@ -49,6 +49,11 @@ test('.tap images round trip', () => {
   assert.equal(records[1], null);          // the tape mark
 });
 
+test('a SIMH record can have bit seven set in its first length byte', () => {
+  const record = Uint8Array.from({ length: 144 }, (_, i) => i & 0o77);
+  assert.deepEqual(parseTap(writeTap([record, null])), [record, null]);
+});
+
 test('a channel reads a tape record into core', () => {
   const { machine } = machineWithTape(`
          ORG   100

@@ -17,7 +17,7 @@ export class LiveLine {
   /**
    * @param {string|URL} [workerUrl]  where the machine's worker lives
    */
-  constructor(workerUrl = new URL('../modes/emulate/worker.js?v=06340fd49d2d', import.meta.url)) {
+  constructor(workerUrl = new URL('../modes/emulate/worker.js?v=2423b2b976c4', import.meta.url)) {
     this.workerUrl = workerUrl;
     this.state = 'closed';
     this.worker = null;
@@ -28,7 +28,9 @@ export class LiveLine {
     this.onError = null;
     this.onHangup = null;
     this.error = null;
+    this.finishConnect = null;
     this.finishBoot = null;
+    this.lifetime = null;
   }
 
   /** True once the line has answered. */
@@ -50,6 +52,8 @@ export class LiveLine {
    * @returns {Promise<boolean>}
    */
   connect({ onPrint, onState, onProgress, onError } = {}) {
+    this.close();
+    this.lifetime = new AbortController();
     this.onPrint = onPrint;
     this.onState = onState;
     this.onProgress = onProgress;
@@ -62,14 +66,14 @@ export class LiveLine {
         if (settled) return;
         settled = true;
         clearTimeout(silence);
+        this.finishConnect = null;
         resolve(ok);
       };
+      this.finishConnect = done;
       const fail = (message) => {
-        this.state = 'closed';
         this.error = String(message || 'the machine worker could not be loaded');
+        this.close();
         this.onError?.(this.error);
-        this.finishBoot?.(false);
-        done(false);
       };
 
       // A worker that never speaks is a line that is not up: fail rather
@@ -115,6 +119,7 @@ export class LiveLine {
       };
 
       worker.onerror = (event) => fail(event?.message || 'the machine worker could not be loaded');
+      worker.onmessageerror = () => fail('the machine worker sent an unreadable message');
     });
   }
 
@@ -129,8 +134,10 @@ export class LiveLine {
    */
   async boot(packUrl, cmdUrl) {
     if (!this.worker) return false;
+    const worker = this.worker;
+    const { signal } = this.lifetime;
     try {
-      const [packResponse, cmdResponse] = await Promise.all([fetch(packUrl), fetch(cmdUrl)]);
+      const [packResponse, cmdResponse] = await Promise.all([fetch(packUrl, { signal }), fetch(cmdUrl, { signal })]);
       if (!packResponse.ok) throw new Error(`pack ${packResponse.status}`);
       if (!cmdResponse.ok) throw new Error(`cmd ${cmdResponse.status}`);
 
@@ -139,6 +146,7 @@ export class LiveLine {
         this.onProgress?.({ type: 'progress', stage: 'fetch', received, total });
       });
       const cmd = await cmdResponse.arrayBuffer();
+      if (signal.aborted || this.worker !== worker) return false;
       if (!total) {
         this.onProgress?.({ type: 'progress', stage: 'fetch', received: pack.byteLength, total: pack.byteLength });
       }
@@ -153,15 +161,18 @@ export class LiveLine {
           this.finishBoot = null;
           if (message) {
             this.error = message;
+            this.close();
             this.onError?.(message);
           }
           resolve(ok);
         };
         this.finishBoot = (ok) => finish(ok);
-        this.worker.postMessage({ type: 'boot', pack, cmd }, [pack, cmd]);
+        worker.postMessage({ type: 'boot', pack, cmd }, [pack, cmd]);
       });
     } catch (error) {
+      if (signal.aborted) return false;
       this.error = error?.message ?? String(error);
+      this.close();
       this.onError?.(this.error);
       return false;
     }
@@ -191,9 +202,16 @@ export class LiveLine {
   close() {
     this.state = 'closed';
     this.pendingPrint.length = 0;
-    this.worker?.postMessage({ type: 'stop' });
-    this.worker?.terminate();
+    if (this.worker) {
+      this.worker.onmessage = null;
+      this.worker.onerror = null;
+      this.worker.onmessageerror = null;
+      this.worker.terminate?.();
+    }
     this.worker = null;
+    this.lifetime?.abort();
+    this.finishConnect?.(false);
+    this.finishBoot?.(false);
   }
 }
 

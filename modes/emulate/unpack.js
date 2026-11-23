@@ -53,8 +53,7 @@ const HEADER_BYTES = 16;
  * same: home address first, then header/data pairs, ended by a zero
  * length.
  */
-function surfaceToTrack(surface, codes) {
-  const runs = formatRuns(codes);
+function surfaceToTrack(surface, runs) {
   const hi = [];
   const lo = [];
   const pushWords = (from, characterCount) => {
@@ -110,16 +109,17 @@ function surfaceToTrack(surface, codes) {
 /** Big-endian cursor over the pack. */
 class Reader {
   constructor(bytes) {
+    this.source = bytes;
     this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     this.at = 0;
   }
   u16() { const v = this.view.getUint16(this.at); this.at += 2; return v; }
   u32() { const v = this.view.getUint32(this.at); this.at += 4; return v; }
   bytes(n) {
-    const out = new Uint8Array(n);
-    for (let i = 0; i < n; i++) out[i] = this.view.getUint8(this.at + i);
+    const start = this.at;
     this.at += n;
-    return out;
+    if (this.at > this.source.byteLength) throw new RangeError('Truncated disk pack');
+    return this.source.subarray(start, this.at);
   }
   ascii(n) {
     let s = '';
@@ -219,8 +219,7 @@ export class PackedDiskModule extends DiskModule {
     const entry = this.store.tracks.get(key);
     if (!entry) return null;
     const surface = unrle(entry.rle, this.store.bytesPerTrack);
-    const codes = codesFromFormatTrack(this.store.pool[entry.fmtPool]);
-    const track = surfaceToTrack(surface, codes);
+    const track = surfaceToTrack(surface, this.store.formats[entry.fmtPool].runs);
     if (!track) return null;
     const into = {
       hi: new Int32Array(this.type.wordsPerTrack),
@@ -344,6 +343,10 @@ export function unpackPacked(bytes, { lazy = false } = {}) {
 
     // A 7631 container: one DiskModule per module, every access arm in it.
     const type = diskType(geometry);
+    const formats = pool.map((bytes) => {
+      const runs = formatRuns(codesFromFormatTrack(bytes));
+      return { runs, layout: layoutFromRuns(runs) };
+    });
     const moduleMap = new Map();
     const dataTracksPerCylinder = heads - 1;
     let tracksLoaded = 0;
@@ -355,7 +358,7 @@ export function unpackPacked(bytes, { lazy = false } = {}) {
       // consults them on every first touch of a formatted track.
       const stores = new Map();
       for (let m = 0; m < modules; m++) {
-        stores.set(m, { tracks: new Map(), pool, bytesPerTrack });
+        stores.set(m, { tracks: new Map(), formats, bytesPerTrack });
         moduleMap.set(m, new PackedDiskModule(type, stores.get(m)));
       }
       let entry = 0;
@@ -365,8 +368,7 @@ export function unpackPacked(bytes, { lazy = false } = {}) {
         for (let a = 0; a < accesses; a++) {
           for (let cyl = 0; cyl < cylinders; cyl++) {
             const poolKey = fmtIndex[m * accesses * cylinders + a * cylinders + cyl];
-            const codes = codesFromFormatTrack(pool[poolKey]);
-            const layout = layoutFromRuns(formatRuns(codes));
+            const { layout } = formats[poolKey];
             if (layout) module.formats.set(a * cylinders + cyl, layout);
             for (let h = 1; h < heads; h++, entry++) {
               const e = tracks[entry];
@@ -386,14 +388,13 @@ export function unpackPacked(bytes, { lazy = false } = {}) {
         for (let a = 0; a < accesses; a++) {
           for (let cyl = 0; cyl < cylinders; cyl++) {
             const poolKey = fmtIndex[m * accesses * cylinders + a * cylinders + cyl];
-            const codes = codesFromFormatTrack(pool[poolKey]);
-            const layout = layoutFromRuns(formatRuns(codes));
+            const { layout, runs } = formats[poolKey];
             if (layout) module.formats.set(a * cylinders + cyl, layout);
             for (let h = 1; h < heads; h++, entry++) {
               const e = tracks[entry];
               if (!e || !e.stored) continue;
               const surface = unrle(e.rle, bytesPerTrack);
-              const track = surfaceToTrack(surface, codes);
+              const track = surfaceToTrack(surface, runs);
               if (!track) continue;
               const number = cyl * dataTracksPerCylinder + (h - 1);
               const into = module.ensureTrack(a, number);

@@ -74,7 +74,7 @@ export function previousScreen(screen, mode) {
  *
  * @param {typeof fetch} [fetchImpl]  injectable for tests
  * @param {string|URL} [packUrl]    where the packed image lives
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean|null>} null when availability could not be checked
  */
 export async function liveLineAvailable(fetchImpl = globalThis.fetch, packUrl = 'modes/emulate/ctss-dasd.pack') {
   // `Worker` is undefined under `node --test`, where this function is exercised
@@ -84,7 +84,7 @@ export async function liveLineAvailable(fetchImpl = globalThis.fetch, packUrl = 
   try {
     const signal = typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(2500) : undefined;
     const response = await fetchImpl(packUrl, { headers: { range: 'bytes=0-11' }, signal });
-    if (!response?.ok) return false;
+    if (!response?.ok) return response?.status >= 500 ? null : false;
     let head;
     if (response.body?.getReader) {
       const reader = response.body.getReader();
@@ -106,6 +106,6 @@ export async function liveLineAvailable(fetchImpl = globalThis.fetch, packUrl = 
     const view = new DataView(head);
     return view.getUint32(0) === 0x50544b31 && view.getUint32(4) === 2;
   } catch {
-    return false;
+    return null;
   }
 }

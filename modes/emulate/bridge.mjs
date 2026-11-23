@@ -1,12 +1,9 @@
 /**
- * The 7750 console line of a live CTSS, offered to the paper in the 1052.
+ * The Node console bridge for CTSS. It mounts the raw disk containers and
+ * exposes the 7750 line over SSE and HTTP. The browser app uses packed images
+ * and boots its own machine in a web worker.
  *
- * The 1050 page cannot hold a 7094: the disk containers are 465 MB and the
- * machine is a Node program. So the machine stays here, in the page's server,
- * and only the *line* crosses to the browser — the same thing the 7750 did in
- * 1965, with an SSE stream and a POST in place of the coax pair.
- *
- *   node modes/emulate/serve.mjs         # page + machine on one port
+ *   node modes/emulate/serve.mjs
  *
  * `CtssTerminal` boots exactly one Machine() from the frozen dasd tree, dials
  * line 0, and turns the supervisor's console output into events. `bridgeServer`
@@ -34,6 +31,7 @@ import { ChronologClock } from './src/devices/chrono.js';
 import { TapeUnit } from './src/devices/tape.js';
 import { DrumChannel, DrumControl } from './src/devices/drum.js';
 import { CommunicationsController, CONSOLE_LINE } from './src/devices/comm.js';
+import { MachinePacer } from './pacing.js';
 
 /** The frozen tree the 1050's mode 3 boots. Override with MODE3_DASD. */
 export const DASD_DIR = process.env.MODE3_DASD ?? 'tmp/mode3-dasd';
@@ -105,7 +103,7 @@ export class CtssTerminal extends EventEmitter {
    * Returns false if the line is not up yet.
    */
   send(text) {
-    if (!this.comm.enabled) return false;
+    if (this.stopped || !this.comm.enabled || !this.comm.lines[CONSOLE_LINE].connected) return false;
     this.comm.typeLine(CONSOLE_LINE, String(text ?? ''));
     return true;
   }
@@ -113,9 +111,8 @@ export class CtssTerminal extends EventEmitter {
   /** Run until `stop()`. Yields between chunks so HTTP requests get a turn. */
   async run() {
     this.started = true;
-    this.startedAt = Date.now();
     this.#emitState();
-    const paced = this.speed > 0;
+    const pacer = new MachinePacer(this.speed, this.chunk);
     while (!this.stopped) {
       if (!this.machine.running) this.machine.start();
       this.executed += this.machine.run(this.chunk);
@@ -125,15 +122,9 @@ export class CtssTerminal extends EventEmitter {
         this.dialed = true;
         this.dial();
       }
-      if (paced) {
-        // Hold the machine to its speed rather than to the host's: everything
-        // about a session's timing — the interval timer, the clock, CTSS's own
-        // patience with an idle terminal — is measured in the machine's time.
-        const due = (this.executed / this.speed) * 1000;
-        const spent = Date.now() - this.startedAt;
-        if (due > spent) await new Promise((done) => setTimeout(done, Math.min(due - spent, 100)));
-      }
-      await new Promise((done) => setImmediate(done));
+      const delay = pacer.delay(this.machine.lastRunSlots);
+      if (delay >= 1) await new Promise((done) => setTimeout(done, delay));
+      else await new Promise((done) => setImmediate(done));
     }
   }
 
@@ -184,7 +175,9 @@ export class CtssTerminal extends EventEmitter {
 
     const comm = new CommunicationsController();
     machine.channels[4].attach(0, comm);
-    comm.lines[CONSOLE_LINE].onPrint = (text) => this.#console(text);
+    const line = comm.lines[CONSOLE_LINE];
+    line.onPrint = (text) => this.#console(text);
+    line.onHangup = () => this.stop();
 
     this.machine = machine;
     this.comm = comm;
@@ -210,7 +203,6 @@ export class CtssTerminal extends EventEmitter {
   #console(text) {
     this.backlog = (this.backlog + text).slice(-CtssTerminal.BACKLOG);
     this.emit('print', text);
-    if (/HANGUP/.test(text)) this.stop();
   }
 
   #emitState() {
@@ -247,9 +239,16 @@ const TYPES = new Map(Object.entries({
 export function bridgeServer({ terminal, root }) {
   const files = resolve(root ?? fileURLToPath(new URL('../..', import.meta.url)));
 
-  return createServer(async (request, response) => {
-    const url = new URL(request.url, 'http://localhost');
-    const path = url.pathname;
+  const handle = async (request, response) => {
+    let path;
+    let decodedPath;
+    try {
+      path = new URL(request.url, 'http://localhost').pathname;
+      decodedPath = decodeURIComponent(path);
+    } catch {
+      response.writeHead(400).end('Invalid URL');
+      return;
+    }
 
     if (path === '/api/emulation/events') {
       response.writeHead(200, {
@@ -285,8 +284,17 @@ export function bridgeServer({ terminal, root }) {
         response.end(JSON.stringify({ ok: false, error: 'POST only' }));
         return;
       }
-      let body = '';
-      for await (const part of request) body += part;
+      const parts = [];
+      let bytes = 0;
+      for await (const part of request.iterator({ destroyOnReturn: false })) {
+        bytes += part.length;
+        if (bytes > 8192) {
+          response.writeHead(413, { connection: 'close' }).end('Input is too long');
+          return;
+        }
+        parts.push(part);
+      }
+      const body = Buffer.concat(parts, bytes).toString('utf8');
       let text = '';
       try { text = JSON.parse(body || '{}').text ?? ''; } catch { /* a bare body is the line itself */ text = body; }
       const ok = terminal.send(String(text).replace(/[\r\n]+$/, ''));
@@ -297,7 +305,7 @@ export function bridgeServer({ terminal, root }) {
 
     // The page's own files. `tmp/` is where the 465 MB disk containers live and
     // is never worth serving, so it is refused outright.
-    const wanted = normalize(decodeURIComponent(path)).replace(/^(\.\.[/\\])+/, '');
+    const wanted = normalize(decodedPath).replace(/^(\.\.[/\\])+/, '');
     const file = join(files, wanted === '/' ? 'index.html' : wanted);
     if (!file.startsWith(files + '/') || file.startsWith(join(files, 'tmp') + '/')) {
       response.writeHead(403).end('forbidden');
@@ -306,14 +314,23 @@ export function bridgeServer({ terminal, root }) {
     try {
       const info = await statAsync(file);
       if (!info.isFile()) throw new Error('not a file');
+      const body = await readFileAsync(file);
       response.writeHead(200, {
         'content-type': TYPES.get(extname(file)) ?? 'application/octet-stream',
         'content-length': info.size,
       });
-      response.end(await readFileAsync(file));
+      response.end(body);
     } catch {
       response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       response.end('not found');
     }
+  };
+
+  return createServer((request, response) => {
+    handle(request, response).catch(() => {
+      if (response.destroyed) return;
+      if (response.headersSent) response.destroy();
+      else response.writeHead(500).end('Request failed');
+    });
   });
 }

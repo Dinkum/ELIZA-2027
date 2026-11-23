@@ -28,19 +28,16 @@ function text(body, type) {
 
 export async function onRequest({ request, env, next }) {
   const origin = siteOrigin(env);
-  if (!origin) return next();
-
-  const home = `${origin}/`;
   const { pathname } = new URL(request.url);
 
-  if (pathname === '/robots.txt') {
+  if (origin && pathname === '/robots.txt') {
     return text(`User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`, 'text/plain');
   }
-  if (pathname === '/sitemap.xml') {
+  if (origin && pathname === '/sitemap.xml') {
     return text(
       '<?xml version="1.0" encoding="UTF-8"?>\n'
         + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + `  <url>\n    <loc>${home}</loc>\n  </url>\n`
+        + `  <url>\n    <loc>${origin}/</loc>\n  </url>\n`
         + '</urlset>\n',
       'application/xml',
     );
@@ -50,6 +47,17 @@ export async function onRequest({ request, env, next }) {
   if (pathname !== '/' && pathname !== '/index.html') return response;
   if (!(response.headers.get('Content-Type') || '').includes('text/html')) return response;
 
+  const page = new Response(response.body, response);
+  page.headers.set('Cache-Control', 'no-cache');
+  page.headers.set('X-Content-Type-Options', 'nosniff');
+  page.headers.set('X-Frame-Options', 'DENY');
+  page.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  page.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  page.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  page.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'");
+  if (!origin) return page;
+
+  const home = `${origin}/`;
   return new HTMLRewriter()
     .on('head', {
       element(head) {
@@ -59,5 +67,5 @@ export async function onRequest({ request, env, next }) {
         );
       },
     })
-    .transform(response);
+    .transform(page);
 }

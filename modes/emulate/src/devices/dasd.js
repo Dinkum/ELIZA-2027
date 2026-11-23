@@ -151,9 +151,12 @@ export function layoutFromRuns(runs) {
  *
  * Returns null for a track whose format says it holds nothing.
  */
-export function readTrack(bytes, geometry, codes, { module = 0, access = 0, cylinder = 0, head = 1 }) {
+export function readTrack(bytes, geometry, codes, place) {
+  return readTrackRuns(bytes, geometry, formatRuns(codes), place);
+}
+
+function readTrackRuns(bytes, geometry, runs, { module = 0, access = 0, cylinder = 0, head = 1 }) {
   const at = trackOffset(geometry, { module, access, cylinder, head });
-  const runs = formatRuns(codes);
 
   const hi = [];
   const lo = [];
@@ -235,11 +238,11 @@ export function loadContainer(bytes, makeModule, { module = 0, access = 0 } = {}
   let loaded = 0;
 
   for (let cylinder = 0; cylinder < geometry.cylinders; cylinder++) {
-    const codes = readFormat(bytes, geometry, { module, access, cylinder });
+    const runs = formatRuns(readFormat(bytes, geometry, { module, access, cylinder }));
     // The format belongs to the whole cylinder whether or not any of its
     // tracks hold data yet — a formatted track keeps its record slots.
     if (target.formats instanceof Map) {
-      const layout = layoutFromRuns(formatRuns(codes));
+      const layout = layoutFromRuns(runs);
       if (layout) target.formats.set(access * geometry.cylinders + cylinder, layout);
     }
     for (let head = 1; head < geometry.heads; head++) {
@@ -248,7 +251,7 @@ export function loadContainer(bytes, makeModule, { module = 0, access = 0 } = {}
       // is interpreted. It is also much the cheaper test: a 1302 has forty
       // thousand tracks and almost none of them are ever written on.
       if (!trackHasData(bytes, geometry, { module, access, cylinder, head })) continue;
-      const track = readTrack(bytes, geometry, codes, { module, access, cylinder, head });
+      const track = readTrackRuns(bytes, geometry, runs, { module, access, cylinder, head });
       if (!track) continue;
       const number = cylinder * geometry.dataTracksPerCylinder + (head - 1);
       const into = target.ensureTrack(access, number);

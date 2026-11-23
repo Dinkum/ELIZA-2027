@@ -42,6 +42,7 @@ export const BCORE = CORE_SIZE;
 
 /** What `step` is doing between instructions. */
 export const RUN = { STOPPED: 0, RUNNING: 1 };
+const PROTECTION_FAULT = Symbol('protection fault');
 
 export class CPU {
   constructor(core, { multipleTagMode = true } = {}) {
@@ -240,7 +241,7 @@ export class CPU {
   /** Fetch an operand into the storage register. */
   access(address) {
     const a = this.resolve(address);
-    if (a < 0) return;
+    if (a < 0) throw PROTECTION_FAULT;
     const i = a | this.bcoreData;
     this.srHi = this.core.hi[i];
     this.srLo = this.core.lo[i];
@@ -250,7 +251,7 @@ export class CPU {
   /** Fetch the second word of a double-precision operand. */
   access2(address) {
     const a = this.resolve(address);
-    if (a < 0) return;
+    if (a < 0) throw PROTECTION_FAULT;
     const i = a | this.bcoreData;
     this.sr2Hi = this.core.hi[i];
     this.sr2Lo = this.core.lo[i];
@@ -290,6 +291,16 @@ export class CPU {
     this.core.hi[i] = hi & HALF;
     this.core.lo[i] = lo & HALF;
     this.cycles++;
+  }
+
+  /** A double store validates both addresses before writing either word. */
+  storePair(address, firstHi, firstLo, secondHi, secondLo) {
+    const first = this.resolve(address);
+    if (first < 0) return;
+    const second = this.resolve((address + 1) & ADDR);
+    if (second < 0) return;
+    this.store(first | this.bcoreData, firstHi, firstLo, false);
+    this.store(second | this.bcoreData, secondHi, secondLo, false);
   }
 
   // ======================================================================
@@ -425,7 +436,15 @@ export class CPU {
     this.srLo = this.ilrLo;
     this.ic = (this.ic + 1) & ADDR;
 
-    this.execute();
+    try {
+      this.execute();
+    } catch (error) {
+      if (error !== PROTECTION_FAULT) throw error;
+    }
+    if (this.protTrapPending) {
+      if (this.trapInhibit > 0) this.trapInhibit--;
+      return this.takeProtTrap(startCycles);
+    }
 
     // A floating point result out of range raises a spill. With the trap
     // enabled it becomes a trap to location 10; without it, the overflow
@@ -442,7 +461,6 @@ export class CPU {
     }
 
     if (this.trapInhibit > 0) this.trapInhibit--;
-    if (this.protTrapPending) return this.takeProtTrap(startCycles);
     return this.cycles - startCycles;
   }
 
@@ -506,61 +524,63 @@ export class CPU {
 
   /** Decode and execute the word sitting in the storage register. */
   execute() {
-    this.instructions++;
+    for (let executions = 0; executions < CORE_SIZE; executions++) {
+      this.instructions++;
+      const hi = this.srHi;
+      const lo = this.srLo;
+      // The opcode is word bits 1-11, six places up in the high half. The sign
+      // bit is kept apart at 0100000 rather than immediately above bit 1, so that
+      // the positive and negative opcode spaces read as they do in the listings:
+      // TRA is 0020 and its negative twin is 0100020.
+      this.op = ((hi & 0o400000) ? 0o100000 : 0) | ((hi >>> 6) & 0o3777);
+      // Indirect addressing is flag bits 12 and 13, both set.
+      this.flag = (hi & 0o60) === 0o60;
+      this.tag = lo >>> 15;
+      this.iaddr = lo & ADDR;
 
-    const hi = this.srHi;
-    const lo = this.srLo;
-    // The opcode is word bits 1-11, six places up in the high half. The sign
-    // bit is kept apart at 0100000 rather than immediately above bit 1, so that
-    // the positive and negative opcode spaces read as they do in the listings:
-    // TRA is 0020 and its negative twin is 0100020.
-    this.op = ((hi & 0o400000) ? 0o100000 : 0) | ((hi >>> 6) & 0o3777);
-    // Indirect addressing is flag bits 12 and 13, both set.
-    this.flag = (hi & 0o60) === 0o60;
-    this.tag = lo >>> 15;
-    this.iaddr = lo & ADDR;
-
-    this.cycles++;
-
-    // Index-class instructions occupy the prefix bits the rest leave at zero.
-    if (this.op & 0o3000) {
-      this.idecr = hi & ADDR;
-      this.executeIndex();
-      return;
-    }
-
-    // The shift instructions take their count from the address field and are
-    // never indirect, whatever the flag bits say.
-    if (this.flag && !NEVER_INDIRECT.has(this.op)) {
-      this.load((this.iaddr - this.getxr(false)) & ADDR, true);
-      if (this.protTrapPending) return;
-      const savedTag = this.tag;
-      this.tag = this.ilrLo >>> 15;
-      const laddr = this.ilrLo & ADDR;
-      this.y = (laddr - this.getxr(false)) & ADDR;
-      this.tag = savedTag;
-    } else {
-      this.y = (this.iaddr - this.getxr(false)) & ADDR;
-    }
-
-    if (this.op === 0o0522) {         // XEC: execute the word at Y in place
-      this.load(this.y, true);
-      if (this.protTrapPending) return;
-      this.srHi = this.ilrHi;
-      this.srLo = this.ilrLo;
-      this.trapInhibit = 1;
-      this.execute();
-      return;
-    }
-
-    if ((this.op & 0o7777) === 0o0760) {
-      executeSense(this);
       this.cycles++;
+
+      // Index-class instructions occupy the prefix bits the rest leave at zero.
+      if (this.op & 0o3000) {
+        this.idecr = hi & ADDR;
+        this.executeIndex();
+        return;
+      }
+
+      // The shift instructions take their count from the address field and are
+      // never indirect, whatever the flag bits say.
+      if (this.flag && !NEVER_INDIRECT.has(this.op)) {
+        this.load((this.iaddr - this.getxr(false)) & ADDR, true);
+        if (this.protTrapPending) return;
+        const savedTag = this.tag;
+        this.tag = this.ilrLo >>> 15;
+        const laddr = this.ilrLo & ADDR;
+        this.y = (laddr - this.getxr(false)) & ADDR;
+        this.tag = savedTag;
+      } else {
+        this.y = (this.iaddr - this.getxr(false)) & ADDR;
+      }
+
+      if (this.op === 0o0522) {         // XEC: execute the word at Y in place
+        this.load(this.y, true);
+        if (this.protTrapPending) return;
+        this.srHi = this.ilrHi;
+        this.srLo = this.ilrLo;
+        this.trapInhibit = 1;
+        continue;
+      }
+
+      if ((this.op & 0o7777) === 0o0760) {
+        executeSense(this);
+        this.cycles++;
+        return;
+      }
+
+      if ((this.op & 0o100000) === 0) executePositive(this);
+      else executeNegative(this);
       return;
     }
-
-    if ((this.op & 0o100000) === 0) executePositive(this);
-    else executeNegative(this);
+    this.illegalInstruction();
   }
 
   /**
@@ -575,6 +595,7 @@ export class CPU {
     switch (this.op & 0o103000) {
       case 0o101000: {               // STR — store location and trap
         this.load(0, true);
+        if (this.protTrapPending) return;
         this.store(0, this.ilrHi, (this.ilrLo & ~ADDR & HALF) | this.ic, true);
         this.ic = 2;
         this.reloMode = false;

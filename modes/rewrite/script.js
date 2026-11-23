@@ -104,8 +104,10 @@ function parseKeywordRule(list) {
 /** (MEMORY MY (0 YOUR 0 = ...) x4) — decomposition and reassembly share a list. */
 function parseMemoryRule(list) {
   const keyword = list[1];
+  if (list.length !== 6) throw new Error('MEMORY needs four transformations');
   const transformations = list.slice(2).map((rule) => {
-    const split = rule.indexOf('=');
+    const split = Array.isArray(rule) ? rule.indexOf('=') : -1;
+    if (split < 1 || split === rule.length - 1) throw new Error('MEMORY transformation needs a decomposition and a reply separated by =');
     return {
       decomposition: parseDecomposition(rule.slice(0, split)),
       template: parseTemplate(rule.slice(split + 1)),
@@ -141,7 +143,7 @@ export function parseScript(text) {
     rules.set(rule.keyword, rule);
     for (const tag of rule.tags) {
       if (!tags.has(tag)) tags.set(tag, new Set());
-      tags.get(tag).add(rule.keyword);
+      tags.get(tag).add(rule.substitute ?? rule.keyword);
     }
   }
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ElizaPort1966 } from '../eliza-1966.js';
+import { ElizaPort, SlipFault } from '../eliza.js';
 import { SCRIPT_1966 } from '../../../data/scripts/eliza-1966-cacm.js';
 
 test('published opening reply', () => {
@@ -19,6 +20,21 @@ test('MEMORY hashes the final word even when a DLIST tag follows it', () => {
 test('PRE rebuilds the sentence before following its link', () => {
   const eliza = new ElizaPort1966(SCRIPT_1966);
   assert.equal(eliza.respond("I'm depressed."), 'I AM SORRY TO HEAR YOU ARE DEPRESSED');
+});
+
+test('PRE carries SLIP description lists along with matched words', () => {
+  const eliza = new ElizaPort1966(SCRIPT_1966);
+  assert.equal(eliza.respond("I'm sure I think you are nice."), 'WHAT MAKES YOU THINK I AM NICE');
+});
+
+test('the tape reader accepts line endings and comments, and reports malformed input as a SLIP fault', () => {
+  const tape = '; greeting (comment)\r\n' + SCRIPT_1966.replaceAll('\n', '\r\n\t');
+  const eliza = new ElizaPort1966(tape);
+  assert.ok(eliza instanceof ElizaPort);
+  assert.equal(eliza.respond('Men are all alike.'), 'IN WHAT WAY');
+  for (const input of [')) hello', '(/foo)', '123abc']) {
+    assert.throws(() => eliza.respond(input), SlipFault);
+  }
 });
 
 test('reassembly links and NEWKEY advance through script rules', () => {

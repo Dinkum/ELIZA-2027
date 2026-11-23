@@ -21,18 +21,26 @@ export class CtssOutput {
     this.limit = limit;
     this.text = '';
     this.waiters = [];
+    this.closed = false;
   }
 
   push(text) {
     this.text = (this.text + String(text)).slice(-this.limit);
     const ready = this.waiters.filter(({ pattern }) => matches(pattern, this.text));
     this.waiters = this.waiters.filter((waiter) => !ready.includes(waiter));
-    ready.forEach(({ resolve }) => resolve());
+    ready.forEach(({ resolve }) => resolve(true));
   }
 
   waitFor(pattern) {
-    if (matches(pattern, this.text)) return Promise.resolve();
+    if (this.closed) return Promise.resolve(false);
+    if (matches(pattern, this.text)) return Promise.resolve(true);
     return new Promise((resolve) => this.waiters.push({ pattern, resolve }));
+  }
+
+  close() {
+    this.closed = true;
+    for (const { resolve } of this.waiters) resolve(false);
+    this.waiters.length = 0;
   }
 }
 
@@ -42,9 +50,8 @@ export class CtssOutput {
  */
 export async function logInToCtss(output, typeLine) {
   for (const step of LOGIN) {
-    await output.waitFor(step.prompt);
+    if (!(await output.waitFor(step.prompt))) return false;
     if (!(await typeLine(step.line))) return false;
   }
-  await output.waitFor(COMMAND_PROMPT);
-  return true;
+  return output.waitFor(COMMAND_PROMPT);
 }

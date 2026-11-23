@@ -34,7 +34,8 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="app/styles.css?v=f92836278078">
+<link rel="stylesheet" href="app/styles.css?v=39d79b3d7abb">
+<link rel="stylesheet" href="font/font.css?v=d29dc5d55e00">
 </head>
 <body>
   <!-- The desk. Two screens, and no paper yet: what to run is agreed here so
@@ -90,18 +91,19 @@
           <button id="port-guide-dismiss" class="live-guide-dismiss" type="button">DISMISS</button>
         </aside>
       </div>
-      <div id="sheet" class="sheet" role="log" aria-live="polite" aria-label="printed paper"></div>
+      <div id="sheet" class="sheet" role="region" aria-label="Printed paper"></div>
+      <div id="announcement" class="sr-only" role="status"></div>
     </div>
   </main>
 
   <!-- The 1052 keyboard. Hidden: the paper is the whole interface. -->
   <input id="keyboard" class="keyboard" autocomplete="off" autocorrect="off"
-         autocapitalize="characters" spellcheck="false" aria-label="typewriter keyboard">
+         autocapitalize="characters" spellcheck="false" enterkeyhint="enter" aria-label="Typewriter keyboard">
 
   <button id="back" class="back" type="button" hidden>BACK</button>
 
   <button id="sound" class="sound" type="button" aria-pressed="false" hidden>BELL OFF</button>
 
-  <script type="module" data-cfasync="false" src="app/main.js?v=c74c4f9bcaf0"></script>
+  <script type="module" data-cfasync="false" src="app/main.js?v=d7998e5afba3"></script>
 </body>
 </html>

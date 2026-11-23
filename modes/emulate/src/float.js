@@ -190,6 +190,7 @@ export function floatingRound(cpu) {
   if (op.frac & DCRYMASK) {
     op.frac >>= 1n;
     op.exp += 1;
+    if (op.exp === 0o400) cpu.spill = SPILL.AC | SPILL.OVERFLOW;
   }
   packAC(cpu, op, false, 0, 0, false);
 }

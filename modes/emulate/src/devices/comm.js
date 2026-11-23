@@ -141,6 +141,7 @@ export class Line {
     this.notReturned = 0;
     /** Where printed text goes. The page in app/ replaces this. */
     this.onPrint = null;
+    this.onHangup = null;
   }
 
   print(text) {
@@ -180,6 +181,7 @@ export class CommunicationsController {
     this.signalled = false;
     this.idlePolls = 0;
     this.completionReadyAt = 0;
+    this.completionsPending = false;
   }
 
   reset() {
@@ -192,6 +194,7 @@ export class CommunicationsController {
     this.signalled = false;
     this.idlePolls = 0;
     this.completionReadyAt = 0;
+    this.completionsPending = false;
     for (const line of this.lines) {
       line.input.length = 0;
       line.output.length = 0;
@@ -395,6 +398,7 @@ export class CommunicationsController {
     // it sent; the line owes that many completions back, however they print.
     line.notReturned += characters[1] & 0o7777;
     let text = '';
+    let hungUp = false;
     // The first two characters are the header, not data. After that the
     // stream is s709's: an end of medium stops the message, the escape
     // character makes the next one a control operation, and a hangup
@@ -407,6 +411,7 @@ export class CommunicationsController {
         continue;
       }
       if (raw === OUT_HANGUP) {
+        hungUp ||= line.connected;
         line.connected = false;
         continue;
       }
@@ -414,12 +419,14 @@ export class CommunicationsController {
       if (decoded) text += decoded;
     }
     if (text) line.print(text);
+    if (hungUp) line.onHangup?.();
 
     this.state = IDLE;
     // A line that has just been sent a message owes completions for it: that
     // is a new thing for the controller to report, so the idle cycle below is
     // allowed to raise attention for it again.
     if (line.notReturned > 0) {
+      this.completionsPending = true;
       this.signalled = false;
       this.completionReadyAt = Date.now() + COMPLETION_IDLE_MS;
     }
@@ -436,9 +443,8 @@ export class CommunicationsController {
    * (OUTPUT WAIT, "output buffers filled") with nothing left to wake it.
    */
   get wantsAttention() {
-    return this.enabled && this.state === IDLE && !this.signalled
-      && Date.now() >= this.completionReadyAt
-      && this.lines.some((line) => line.notReturned > 0);
+    return this.completionsPending && this.enabled && this.state === IDLE && !this.signalled
+      && Date.now() >= this.completionReadyAt;
   }
 
   /**
@@ -448,9 +454,10 @@ export class CommunicationsController {
    * own and raises attention (commdev.c commwork:514-531).
    */
   idle(channel) {
-    if (!this.wantsAttention || channel.inInterrupt ||
+    const wantsAttention = this.wantsAttention;
+    if (!wantsAttention || channel.inInterrupt ||
         (channel.sms & INHIBIT_ATTENTION1)) {
-      if (!this.wantsAttention) this.idlePolls = 0;
+      if (!wantsAttention) this.idlePolls = 0;
       return;
     }
     if (++this.idlePolls <= IDLE_POLLS) return;
@@ -541,6 +548,7 @@ export class CommunicationsController {
       }
     }
 
+    this.completionsPending = false;
     // Even a three-character completion message needs its own EOM; otherwise
     // CTSS reads old core words as the end of the next input card.
     characters.push(END_OF_MEDIUM);

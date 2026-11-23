@@ -9,13 +9,20 @@ export class Sound {
   enabled = false;
 
   #context = null;
+  #strikeBuffers = [];
 
   toggle(on) {
     this.enabled = on ?? !this.enabled;
     if (this.enabled && !this.#context) {
-      this.#context = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) {
+        this.enabled = false;
+        return false;
+      }
+      this.#context = new AudioContext();
     }
-    this.#context?.resume();
+    const transition = this.enabled ? this.#context.resume() : this.#context?.suspend();
+    transition?.catch(() => {});
     return this.enabled;
   }
 
@@ -24,15 +31,20 @@ export class Sound {
     const ctx = this.#ready();
     if (!ctx) return;
     const now = ctx.currentTime;
-    const length = Math.floor(ctx.sampleRate * 0.03);
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < length; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3;
+    if (this.#strikeBuffers.length === 0) {
+      const length = Math.floor(ctx.sampleRate * 0.03);
+      for (let strike = 0; strike < 4; strike++) {
+        const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+          data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3;
+        }
+        this.#strikeBuffers.push(buffer);
+      }
     }
 
     const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = this.#strikeBuffers[Math.floor(Math.random() * this.#strikeBuffers.length)];
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';

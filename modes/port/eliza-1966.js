@@ -10,11 +10,11 @@
 import {
   LIST, LISTMT, MTLIST, IRALST, NEWBOT, NEWTOP, POPTOP, TOP, SUBST,
   SEQRDR, SEQLR, SEQLL, RDRNEG, LSPNTR, RDRCPY, NULSTL, NULSTR,
-  LSSCPY, LSTNAM, NAMTST, LIST9, ref,
+  LSSCPY, LSTNAM, NAMTST, LIST9, ref, withSlipCells,
 } from './slip.js';
 import { YMATCH, ASSMBL, REGEL, TXTPRT, SlipFault } from './slip-eliza.js';
 import { TREAD } from './listrd.js';
-import { ElizaPort, HASH, TESTS } from './eliza.js?v=1e3713080283';
+import { ElizaPort, HASH, TESTS } from './eliza.js';
 
 const NOMATCH = ['PLEASE CONTINUE', 'HMMM', 'GO ON , PLEASE', 'I SEE'];
 const MAX_TRANSFERS = 256; // Stop a cyclic custom script from hanging the page.
@@ -80,12 +80,22 @@ export class ElizaPort1966 extends ElizaPort {
   }
 
   respond(text) {
+    try {
+      return withSlipCells(this.cellAddresses, () => this.#respond(text));
+    } catch (error) {
+      if (error instanceof SlipFault) throw error;
+      throw new SlipFault(error.message, { cause: error });
+    }
+  }
+
+  #respond(text) {
     const output = [];
     const print = (line) => output.push(line);
     const typeOut = (list) => TXTPRT(list, print);
     const f = ref();
     const fr = ref();
     const sf = ref();
+    const descriptions = new WeakMap();
 
     TREAD(MTLIST(this.INPUT), text);
     this.LIMIT = this.LIMIT === 4 ? 1 : this.LIMIT + 1;
@@ -189,7 +199,7 @@ export class ElizaPort1966 extends ElizaPort {
             if (!reader) return NOMATCH[this.LIMIT - 1];
             break;
           }
-          if (YMATCH(TOP(rule), this.INPUT, MTLIST(this.TEST)) === 0) continue;
+          if (YMATCH(TOP(rule), this.INPUT, MTLIST(this.TEST), descriptions) === 0) continue;
           const reassembly = nextReassembly(rule);
           const action = TOP(reassembly);
           if (action === 'NEWKEY') {
@@ -207,7 +217,7 @@ export class ElizaPort1966 extends ElizaPort {
             SEQLR(preReader, f);
             const template = SEQLR(preReader, f);
             const link = SEQLR(preReader, f);
-            const rebuilt = ASSMBL(template, this.TEST, LIST());
+            const rebuilt = ASSMBL(template, this.TEST, LIST(), descriptions);
             if (!rebuilt) throw new SlipFault('PRE could not assemble input');
             MTLIST(this.INPUT);
             LSSCPY(rebuilt, this.INPUT);
@@ -233,4 +243,5 @@ export class ElizaPort1966 extends ElizaPort {
     typeOut(ASSMBL(nextReassembly(rule), this.TEST, MTLIST(this.OUTPUT)));
     return output.join('\n');
   }
+
 }

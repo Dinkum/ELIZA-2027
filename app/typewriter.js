@@ -24,13 +24,30 @@ const CARRIER_RETURN_CHARACTER_TIMES = 1.5;
 const CHARACTER_TIME_MS = 67.5;
 const BELL_FROM_RIGHT_MARGIN = 12;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /** Printing is mechanical, not metronomic: vary each strike a little. */
 const jitter = (amount) => (Math.random() * 2 - 1) * amount;
 
 export class Typewriter {
   pending = 0;
+  #lifetime = new AbortController();
+
+  cancel() {
+    this.#lifetime.abort();
+  }
+
+  #sleep(ms) {
+    const { signal } = this.#lifetime;
+    if (signal.aborted) return Promise.resolve();
+    return new Promise((resolve) => {
+      const finish = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, ms);
+      signal.addEventListener('abort', finish, { once: true });
+    });
+  }
 
   /**
    * @param {HTMLElement} sheet  element the printed lines are appended to
@@ -75,6 +92,7 @@ export class Typewriter {
     return this.#enqueue(async () => {
       let run = null;
       for (const char of this.#wrap(text, this.column)) {
+        if (this.#lifetime.signal.aborted) return;
         if (char === '\n') {
           await this.#carrierReturn();
           run = null;
@@ -82,7 +100,7 @@ export class Typewriter {
         }
         if (!run && !this.carrier.nextElementSibling) run = this.#openRun(options);
         this.#strike(char, run, options);
-        await sleep(MS_PER_CHARACTER + Math.random() * MS_PER_CHARACTER * 0.12);
+        await this.#sleep(MS_PER_CHARACTER + Math.random() * MS_PER_CHARACTER * 0.12);
       }
     });
   }
@@ -92,13 +110,14 @@ export class Typewriter {
     return this.#enqueue(async () => {
       let run = null;
       for (const char of this.#wrap(text, this.column)) {
+        if (this.#lifetime.signal.aborted) return;
         if (char === '\n') {
           await this.#carrierReturn();
           run = null;
         } else {
           if (!run && !this.carrier.nextElementSibling) run = this.#openRun(options);
           this.#strike(char, run, options);
-          await sleep(MS_PER_CHARACTER);
+          await this.#sleep(MS_PER_CHARACTER);
         }
       }
     });
@@ -107,6 +126,11 @@ export class Typewriter {
   /** Back the carrier up one position, leaving every impression on the paper. */
   rubout() {
     return this.#enqueue(async () => {
+      if (this.column === 0 && this.line.previousElementSibling) {
+        this.line = this.line.previousElementSibling;
+        this.line.appendChild(this.carrier);
+        this.column = this.margin;
+      }
       let struck = this.carrier.previousElementSibling;
       if (!struck && this.carrier.parentElement?.classList.contains('run')) {
         struck = this.carrier.parentElement.previousElementSibling;
@@ -119,7 +143,7 @@ export class Typewriter {
         struck.before(this.carrier);
       }
       this.column -= 1;
-      await sleep(MS_PER_CHARACTER);
+      await this.#sleep(MS_PER_CHARACTER);
     });
   }
 
@@ -131,16 +155,19 @@ export class Typewriter {
   }
 
   pause(ms) {
-    return this.#enqueue(() => sleep(ms));
+    return this.#enqueue(() => this.#sleep(ms));
   }
 
   /** Queue work so everything prints in the order it was asked for. */
   #enqueue(job) {
     this.pending += 1;
-    this.queue = this.queue.then(job).finally(() => {
+    const result = this.queue.then(() => {
+      if (!this.#lifetime.signal.aborted) return job();
+    }).finally(() => {
       this.pending -= 1;
     });
-    return this.queue;
+    this.queue = result.catch(() => {});
+    return result;
   }
 
   /**
@@ -213,6 +240,7 @@ export class Typewriter {
   }
 
   async #carrierReturn() {
+    if (this.#lifetime.signal.aborted) return;
     const travel = (CARRIER_RETURN_CHARACTER_TIMES + this.column * CHARACTER_WIDTH_INCHES) * CHARACTER_TIME_MS;
     const distance = Math.max(0,
       this.carrier.getBoundingClientRect().left - this.line.getBoundingClientRect().left);
@@ -220,16 +248,17 @@ export class Typewriter {
       { transform: 'translateX(0)' },
       { transform: `translateX(-${distance}px)` },
     ], { duration: travel, easing: 'linear', fill: 'forwards' }) : null;
-    await sleep(travel);
+    await this.#sleep(travel);
     motion?.cancel();
-    this.#feed();
+    if (!this.#lifetime.signal.aborted) this.#feed();
   }
 
   #feed() {
-    this.line = document.createElement('div');
+    const following = this.line?.nextElementSibling;
+    this.line = following ?? document.createElement('div');
     this.line.className = 'line';
-    this.line.appendChild(this.carrier);
-    this.sheet.appendChild(this.line);
+    this.line.prepend(this.carrier);
+    if (!following) this.sheet.appendChild(this.line);
     this.column = 0;
     this.sheet.dispatchEvent(new CustomEvent('linefeed', { bubbles: true }));
   }

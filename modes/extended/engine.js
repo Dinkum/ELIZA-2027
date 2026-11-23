@@ -88,7 +88,7 @@ function tokenize(text) {
     if (token.punct) return;
     token.rawIndex = rawIndex;
     token.wordStart = words.length;
-    for (const part of token.text.toLowerCase().match(/[a-z0-9]+(?:['-][a-z0-9]+)*/g) || []) {
+    for (const part of token.text.toLowerCase().replaceAll('’', "'").match(/[a-z0-9]+(?:['-][a-z0-9]+)*/g) || []) {
       words.push({ raw, rawIndex, text: token.text, sentence: token.sentence, surface: part });
     }
     token.wordEnd = words.length;
@@ -111,6 +111,14 @@ function phraseKeys(script) {
   for (const key of [...Object.keys(contractions), ...Object.keys(aliases)]) {
     const parts = key.split(/[\s-]+/).filter(Boolean);
     if (parts.length < 2) continue;
+    const entries = byFirst.get(parts[0]) || [];
+    entries.push({ key, parts });
+    byFirst.set(parts[0], entries);
+  }
+  const mapped = new Set([...Object.keys(contractions), ...Object.keys(aliases)]);
+  for (const key of new Set(Object.values(script.tags || {}).flat())) {
+    if (!key.includes('-') || mapped.has(key)) continue;
+    const parts = key.split('-');
     const entries = byFirst.get(parts[0]) || [];
     entries.push({ key, parts });
     byFirst.set(parts[0], entries);
@@ -159,23 +167,20 @@ function normalize(words, script) {
  */
 const TAG_PREFIXES = new WeakMap();
 
-function tagPrefixesFor(words, script) {
-  const cached = TAG_PREFIXES.get(words);
+function tagPrefixFor(words, tag, tags) {
+  let perTag = TAG_PREFIXES.get(words);
+  if (!perTag) TAG_PREFIXES.set(words, perTag = new Map());
+  const cached = perTag.get(tag);
   if (cached) return cached;
-
-  const perTag = new Map();
-  for (const tag of Object.keys(script.tags || {})) {
-    const prefix = new Int32Array(words.length + 1);
-    for (let i = 0; i < words.length; i += 1) {
-      prefix[i + 1] = prefix[i] + (hasTag(words[i], tag, script) ? 1 : 0);
-    }
-    perTag.set(tag, prefix);
+  const prefix = new Int32Array(words.length + 1);
+  for (let i = 0; i < words.length; i += 1) {
+    prefix[i + 1] = prefix[i] + (hasTag(words[i], tag, tags) ? 1 : 0);
   }
-  TAG_PREFIXES.set(words, perTag);
-  return perTag;
+  perTag.set(tag, prefix);
+  return prefix;
 }
 
-const hasTag = (word, tag, script) => (script.tags?.[tag] || []).includes(word.norm);
+const hasTag = (word, tag, tags) => tags.get(tag)?.has(word.norm) ?? false;
 
 /**
  * Quote a span of words back as the user typed it, in sentence case.
@@ -195,10 +200,8 @@ function quoteSpan(input, words, from, to) {
   const last = words[to - 1].rawEndIndex ?? words[to - 1].rawIndex;
   const raw = words[from].raw;
   const span = input.slice(raw[first].start, raw[last].end).trim();
-  // Sentence case the first letter of the first word only; leave acronyms and
-  // proper nouns that were typed mixed-case as they are.
   return span.length && span === span.toUpperCase()
-    ? span[0] + span.slice(1).toLowerCase()
+    ? span.toLowerCase().replace(/\bi\b/g, 'I')
     : span;
 }
 
@@ -235,7 +238,8 @@ function isNegated(words, at) {
     if (['not', 'never', 'cannot', 'nobody', 'none'].includes(previous.norm)) {
       if (!['stop', 'help', 'avoid'].includes(nextWord)) return true;
     }
-    if (previous.norm === 'no' && ['longer', 'one', 'person', 'people', 'body'].includes(nextWord)) return true;
+    if (previous.norm === 'no' && (i === at - 1 || ['longer', 'person', 'people', 'body'].includes(nextWord))) return true;
+    if (previous.norm === 'no-one') return true;
     next = i;
   }
   return false;
@@ -254,10 +258,9 @@ function isNegated(words, at) {
  *
  * Returns a map of capture name -> [from, to], or null.
  */
-function matchPattern(input, words, pattern, script, from = 0) {
+function matchPattern(input, words, pattern, tags, withinSentence) {
   const captures = new Map();
   const wilds = [];
-  const tagPrefixes = tagPrefixesFor(words, script);
 
   const walk = (pi, wi) => {
     if (pi === pattern.match.length) return true;
@@ -283,12 +286,14 @@ function matchPattern(input, words, pattern, script, from = 0) {
     }
 
     if (!word) return false;
+    if (withinSentence && pattern.match[pi - 1] !== '0' &&
+        words[wi - 1]?.sentence !== word.sentence && wi > 0) return false;
 
     if (token.startsWith('{')) {
       const { name, tag } = captureToken(token);
       if (pattern.unnegated?.includes(name) && isNegated(words, wi)) return false;
       const sentence = word.sentence;
-      const prefix = tag ? tagPrefixes.get(tag) : null;
+      const prefix = tag ? tagPrefixFor(words, tag, tags) : null;
       for (let end = words.length; end > wi; end -= 1) {
         if (words[end - 1].sentence !== sentence) continue;
         // Every word in the span must carry the tag, in O(1).
@@ -303,7 +308,7 @@ function matchPattern(input, words, pattern, script, from = 0) {
     }
 
     if (token.startsWith('/')) {
-      if (!hasTag(word, token.slice(1), script)) return false;
+      if (!hasTag(word, token.slice(1), tags)) return false;
       return walk(pi + 1, wi + 1);
     }
 
@@ -312,7 +317,7 @@ function matchPattern(input, words, pattern, script, from = 0) {
     return walk(pi + 1, wi + 1);
   };
 
-  if (!walk(0, from)) return null;
+  if (!walk(0, 0)) return null;
 
   const resolved = new Map();
   for (const [name, [a, b]] of captures) resolved.set(name, quoteSpan(input, words, a, b));
@@ -321,12 +326,16 @@ function matchPattern(input, words, pattern, script, from = 0) {
 }
 
 /** Pronoun and agreement flipping, applied only where a template asks for it. */
-function flip(text, script) {
+function flip(text, script, objectFirst) {
   const table = script.pronouns?.flip || {};
-  return text
-    .split(' ')
-    .map((word) => table[word.toLowerCase()] || word)
-    .join(' ');
+  return text.replace(/[a-z]+(?:['’][a-z]+)*/gi, (word, offset) => {
+    const key = word.toLowerCase().replaceAll('’', "'");
+    if (key === 'you') {
+      const object = offset === 0 ? objectFirst : !/[a-z]/i.test(text.slice(offset + word.length));
+      return object ? 'me' : 'I';
+    }
+    return table[key] || word;
+  });
 }
 
 /**
@@ -335,10 +344,11 @@ function flip(text, script) {
  * and memory rather than by the pattern.
  */
 function fillTemplate(template, captures, extra, script) {
-  return template.replace(/\{([a-zA-Z0-9_]+)(?::flip)?\}/g, (match, name) => {
+  const filled = template.replace(/\{([a-zA-Z0-9_]+)(?::(flip|flipObject))?\}/g, (match, name, reflection) => {
     const value = captures.get(name) ?? extra[name] ?? '';
-    return match.includes(':flip') ? flip(value, script) : value;
+    return reflection ? flip(value, script, reflection === 'flipObject') : value;
   });
+  return filled.replace(/^([a-z])/, (letter) => letter.toUpperCase());
 }
 
 export class ExtendedEliza {
@@ -353,6 +363,12 @@ export class ExtendedEliza {
     this.script = script;
     this.semantics = semantics;
     this.families = new Map((script.families || []).map((f) => [f.id, f]));
+    this.tags = new Map(Object.entries(script.tags || {}).map(([tag, words]) => [tag, new Set(words)]));
+    this.ruleOrder = new Map();
+    for (const family of this.families.values()) {
+      for (const rule of family.rules || []) this.ruleOrder.set(rule, this.ruleOrder.size);
+    }
+    this.rotation = new WeakMap();
     this.greeting = script.greeting || 'How do you do. Please tell me what is on your mind.';
 
     this.context = { topic: null, expect: [], lastTopic: null };
@@ -392,7 +408,7 @@ export class ExtendedEliza {
         }
         if (!source) {
           for (const tag of rule.tags || []) {
-            const hit = words.find((w) => hasTag(w, tag, this.script));
+            const hit = words.find((w) => hasTag(w, tag, this.tags));
             if (hit) {
               source = 'tag';
               matchedOn = tag;
@@ -414,32 +430,28 @@ export class ExtendedEliza {
     }
 
     // Script-defined ranks. On a tie, the topic already under discussion wins.
-    const order = new Map();
-    (this.script.families || []).forEach((f, i) => (f.rules || []).forEach((r, j) => order.set(r, [i, j])));
-
     return found.sort((a, b) => {
       const rank = (b.rule.rank ?? b.family.rank ?? 0) - (a.rule.rank ?? a.family.rank ?? 0);
       if (rank) return rank;
       const aTopic = a.family.topic === this.context.topic ? 1 : 0;
       const bTopic = b.family.topic === this.context.topic ? 1 : 0;
       if (aTopic !== bTopic) return bTopic - aTopic;
-      const [ai, aj] = order.get(a.rule);
-      const [bi, bj] = order.get(b.rule);
-      return ai - bi || aj - bj;
+      return this.ruleOrder.get(a.rule) - this.ruleOrder.get(b.rule);
     });
   }
 
   /** Try a list of candidates in order and return the first usable match. */
-  tryRules(input, words, found, trace) {
+  tryRules(input, words, found, trace, visited = new Set()) {
     for (const candidate of found) {
       const patterns = this.patternsFor(candidate.rule);
-      for (const pattern of patterns) {
+      const semantic = candidate.source === 'semantic';
+      for (const pattern of semantic ? [...patterns, ...(candidate.rule.semanticPatterns || [])] : patterns) {
         if (candidate.source === 'semantic' && !hasPatternEvidence(pattern)) {
           trace.push({ step: 'rule', rule: candidate.rule.id, family: candidate.family.id,
             via: candidate.source, on: candidate.matchedOn, matched: false, skipped: 'no-pattern-evidence' });
           continue;
         }
-        const captures = matchPattern(input, words, pattern, this.script);
+        const captures = matchPattern(input, words, pattern, this.tags, semantic);
         trace.push({
           step: 'rule',
           rule: candidate.rule.id,
@@ -455,7 +467,12 @@ export class ExtendedEliza {
         if (pattern.recall && !this.memory.some((m) => !m.used)) continue;
         if (pattern.redirect) {
           const target = this.findRule(pattern.redirect);
-          if (target) return this.tryRules(input, words, [target], trace);
+          if (!target || target.rule === candidate.rule || visited.has(target.rule)) continue;
+          visited.add(candidate.rule);
+          if (semantic) target.source = 'semantic';
+          const redirected = this.tryRules(input, words, [target], trace, visited);
+          visited.delete(candidate.rule);
+          if (redirected) return redirected;
           continue;
         }
         return { candidate, pattern, captures };
@@ -492,14 +509,14 @@ export class ExtendedEliza {
    * The semantic step. It may only propose families to try; the same matcher
    * and the same capture requirements decide whether anything comes of it.
    */
-  suggestFamilies(input, words, trace, embedding = null) {
-    if (!this.semantics) {
+  suggestFamilies(input, words, trace, embedding = null, lookup = this.semantics?.suggest?.bind(this.semantics)) {
+    if (!lookup) {
       trace.push({ step: 'semantics', status: 'unavailable' });
       return [];
     }
     let suggestions = [];
     try {
-      const raw = this.semantics.suggest(input, words, embedding);
+      const raw = lookup(input, words, embedding);
       // A provider that is still loading hands back a Promise. The design says
       // an unavailable encoder must behave exactly like an absent one, so
       // anything that is not an array becomes "no suggestion" rather than a
@@ -567,21 +584,22 @@ export class ExtendedEliza {
   chooseTemplate(pattern) {
     const templates = pattern.templates || [];
     if (!templates.length) return { index: -1, template: '' };
-    pattern.next = pattern.next ?? 0;
+    const rotation = this.rotation.get(pattern) ?? { next: 0, last: null };
+    this.rotation.set(pattern, rotation);
 
     for (let step = 0; step < templates.length; step += 1) {
-      const index = (pattern.next + step) % templates.length;
+      const index = (rotation.next + step) % templates.length;
       const template = templates[index];
-      if (this.recent.includes(template) || template === pattern.last) continue;
-      pattern.next = (index + 1) % templates.length;
-      pattern.last = template;
+      if (this.recent.includes(template) || template === rotation.last) continue;
+      rotation.next = (index + 1) % templates.length;
+      rotation.last = template;
       return { index, template };
     }
 
-    const previous = templates.indexOf(pattern.last);
+    const previous = templates.indexOf(rotation.last);
     const index = previous === -1 ? 0 : (previous + 1) % templates.length;
-    pattern.next = (index + 1) % templates.length;
-    pattern.last = templates[index];
+    rotation.next = (index + 1) % templates.length;
+    rotation.last = templates[index];
     return { index, template: templates[index] };
   }
 
@@ -647,6 +665,29 @@ export class ExtendedEliza {
    *   candidate source -> rank -> rule -> captures -> template -> memory -> out
    */
   respond(input, { embedding = null } = {}) {
+    const turn = this.turnSteps(input);
+    const step = turn.next();
+    if (step.done) return step.value;
+    const { words, trace } = step.value;
+    return turn.next(this.suggestFamilies(input, words, trace, embedding)).value;
+  }
+
+  async respondWithSemantics(input, lookup) {
+    const turn = this.turnSteps(input);
+    const step = turn.next();
+    if (step.done) return step.value;
+    const { words, trace } = step.value;
+    let suggestions = null;
+    try {
+      suggestions = await lookup(input);
+    } catch (error) {
+      trace.push({ step: 'encoder', status: 'error', error: String(error?.message ?? error) });
+    }
+    const provider = Array.isArray(suggestions) ? () => suggestions : undefined;
+    return turn.next(this.suggestFamilies(input, words, trace, null, provider)).value;
+  }
+
+  *turnSteps(input) {
     this.turn += 1;
     const trace = [{ step: 'input', text: input }];
     const { words: rawWords } = tokenize(input);
@@ -673,7 +714,7 @@ export class ExtendedEliza {
     // Gating the whole block on one made both steps unreachable for any script
     // without one, which the trace line silently hid.
     if (!match) {
-      const suggestions = this.suggestFamilies(input, words, trace, embedding);
+      const suggestions = yield { words, trace };
       for (const suggestion of suggestions) {
         const family = this.families.get(suggestion.family);
         const rules = (family.rules || []).map((rule) => ({

@@ -95,6 +95,7 @@ export class HashedEncoder {
 
 /** Cosine of two already-normalized vectors: a dot product. */
 export function cosine(a, b) {
+  if (a.length !== b.length) throw new RangeError('Embedding dimensions do not match');
   let sum = 0;
   for (let i = 0; i < a.length; i += 1) sum += a[i] * b[i];
   return sum;
@@ -183,7 +184,7 @@ export class SemanticIndex {
     return scored
       .filter((s) => s.score >= MIN_SCORE)
       .slice(0, 2)
-      .map((s, i) => ({ ...s, confident: !(ambiguous && i === 0) }));
+      .map((s) => ({ ...s, confident: !ambiguous }));
   }
 }
 

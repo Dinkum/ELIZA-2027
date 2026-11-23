@@ -47,6 +47,7 @@ export class Machine {
      * the supervisor's own idea of the time within the first minute.
      */
     this.ticks = 0;
+    this.lastRunSlots = 0;
   }
 
   /** Console RESET. */
@@ -82,14 +83,14 @@ export class Machine {
     const channels = this.channels;
     let executed = 0;
     let stalled = 0;
-    while (executed < budget && cpu.run === RUN.RUNNING) {
+    while (executed + stalled < budget && cpu.run === RUN.RUNNING) {
       // A halted processor performs no fetch, but the machine is not stopped:
       // the channels keep moving and the clock keeps ticking, and the first
       // trap to arrive is what restarts execution — which is how the
       // supervisor waits for I/O. When no channel is in operation there is
       // nothing left to wake it, and the machine stops for the operator.
       if (cpu.progStop) {
-        if (++stalled > budget) break;
+        stalled++;
         // s709 keeps cycling a PROGSTOP'd processor whenever trap_enb is
         // nonzero — programStop has already halted the machine outright in
         // the nothing-armed case, so reaching here means a trap can still
@@ -148,6 +149,7 @@ export class Machine {
         }
       }
     }
+    this.lastRunSlots = executed + stalled;
     return executed;
   }
 
